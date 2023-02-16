@@ -149,7 +149,7 @@ async def main():
     opponent = RandomPlayer(battle_format="gen8randombattle")
     second_opponent = MaxBasePowerPlayer(battle_format="gen8randombattle")
     third_opponent = SimpleHeuristicsPlayer(battle_format="gen8randombattle")
-    train_env = SimpleRLPlayer(battle_format="gen8randombattle", opponent=second_opponent, start_challenging=True)
+    train_env = SimpleRLPlayer(battle_format="gen8randombattle", opponent=opponent, start_challenging=True)
     train_env = wrap_for_old_gym_api(train_env)
 
     opponent = RandomPlayer(battle_format="gen8randombattle")
@@ -196,9 +196,9 @@ async def main():
     dqn.compile(Adam(learning_rate=0.00025,decay=.00000001), metrics=["mae"])
 
     # Training the model
-    dqn.fit(train_env, nb_steps=30000)
-    # train_env.reset_env(restart=True, opponent=second_opponent)
-    # dqn.fit(train_env, nb_steps=40000)
+    dqn.fit(train_env, nb_steps=10000)
+    train_env.reset_env(restart=True, opponent=second_opponent)
+    dqn.fit(train_env, nb_steps=20000)
     # train_env.reset_env(restart=True, opponent=third_opponent)
     # dqn.fit(train_env, nb_steps=60000)
     train_env.close()
