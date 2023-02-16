@@ -27,7 +27,7 @@ from poke_env.player import (
 class SimpleRLPlayer(Gen8EnvSinglePlayer):
     def calc_reward(self, last_battle, current_battle) -> float:
         return self.reward_computing_helper(
-            current_battle, status_value=.5,fainted_value=2.0, hp_value=1.0, victory_value=30.0
+            current_battle,fainted_value=2.0, hp_value=1.0, victory_value=30.0
         )
 
     def embed_battle(self, battle: AbstractBattle) -> ObservationType:
@@ -40,6 +40,9 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         team_type = np.zeros(12)
         opponent_team_type = np.zeros(12)
         team_multiplyer = -np.ones(6)
+        dynamax_turn = np.ones(1)
+        dynamax_turn[0] = battle.dynamax_turns_left if battle.dynamax_turns_left != None else -1
+
         for i,pokemon in enumerate(battle.available_switches):
             firstTypeMultiplyer = pokemon.type_1.damage_multiplier(
                     battle.opponent_active_pokemon.type_1,
@@ -94,19 +97,20 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
                 moves_dmg_multiplier,
                 [fainted_mon_team, fainted_mon_opponent],
                 can_dynamax,
-                team_multiplyer
+                dynamax_turn,
+                team_multiplyer,
             ]
         )
         return np.float32(final_vector)
 
     def describe_embedding(self) -> Space:
-        low = [-1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0]
+        low = [-1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, -1]
         # typeLowerBound = [0]*24
         # low = low + typeLowerBound
         teamMultiplyerLower = [-1]*6
         low += teamMultiplyerLower
 
-        high = [3, 3, 3, 3, 4, 4, 4, 4, 1, 1, 1]
+        high = [3, 3, 3, 3, 4, 4, 4, 4, 1, 1, 1, 3]
         # typeUpperBound = [1]*24 
         # high += typeUpperBound
         teamMultiplyerUpper = [4]*6
