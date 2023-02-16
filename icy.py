@@ -37,10 +37,40 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         moves_dmg_multiplier = np.ones(4)
         can_dynamax = np.ones(1)
         can_dynamax[0] = 1 if battle.can_dynamax else 0
-        team_type = np.ones(6)
-        opponent_team_type = np.ones(6)
-        for i,pokemon in enumerate(battle.active_pokemon):
-            team_type[i] = pokemon.type
+        team_type = np.zeros(12)
+        opponent_team_type = np.zeros(12)
+        team_multiplyer = -np.ones(6)
+        for i,pokemon in enumerate(battle.available_switches):
+            firstTypeMultiplyer = pokemon.type_1.damage_multiplier(
+                    battle.opponent_active_pokemon.type_1,
+                    battle.opponent_active_pokemon.type_2,)
+            team_multiplyer[i] = firstTypeMultiplyer
+
+            if pokemon.type_2 != None:
+                secondTypeMultiplyer = pokemon.type_2.damage_multiplier(
+                        battle.opponent_active_pokemon.type_1,
+                        battle.opponent_active_pokemon.type_2,)
+                team_multiplyer[i] *= secondTypeMultiplyer
+
+
+        # for i,pokemon in enumerate(battle.team.values()):
+        #     i = i*2
+        #     if pokemon.fainted:
+        #         team_type[i] = 0
+        #         team_type[i + 1] = 0
+        #     else:
+        #         team_type[i] = pokemon.type_1.value/19 if pokemon.type_1 != None else 0
+        #         team_type[i + 1] =  pokemon.type_2.value/19 if pokemon.type_2 != None else 0
+
+        # for i, pokemon in enumerate(battle.opponent_team.values()):
+        #     i = i*2
+        #     if pokemon.fainted:
+        #         team_type[i] = 0
+        #         team_type[i + 1] = 0
+        #     else:
+        #         opponent_team_type[i] = pokemon.type_1.value/19 if pokemon.type_1 != None else 0
+        #         opponent_team_type[i + 1] =  pokemon.type_2.value/19 if pokemon.type_2 != None else 0
+
         for i, move in enumerate(battle.available_moves):
             moves_base_power[i] = (
                 move.base_power / 100
@@ -63,14 +93,26 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
                 moves_base_power,
                 moves_dmg_multiplier,
                 [fainted_mon_team, fainted_mon_opponent],
-                can_dynamax
+                can_dynamax,
+                team_multiplyer
             ]
         )
         return np.float32(final_vector)
 
     def describe_embedding(self) -> Space:
         low = [-1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0]
+        # typeLowerBound = [0]*24
+        # low = low + typeLowerBound
+        teamMultiplyerLower = [-1]*6
+        low += teamMultiplyerLower
+
         high = [3, 3, 3, 3, 4, 4, 4, 4, 1, 1, 1]
+        # typeUpperBound = [1]*24 
+        # high += typeUpperBound
+        teamMultiplyerUpper = [4]*6
+        high += teamMultiplyerUpper
+
+
         return Box(
             np.array(low, dtype=np.float32),
             np.array(high, dtype=np.float32),
