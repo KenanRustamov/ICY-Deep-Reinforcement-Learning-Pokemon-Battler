@@ -41,7 +41,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         opponent_team_type = np.zeros(12)
         team_multiplyer = -np.ones(6)
         dynamax_turn = np.ones(1)
-        dynamax_turn[0] = battle.dynamax_turns_left if battle.dynamax_turns_left != None else -1
+        dynamax_turn[0] = battle.dynamax_turns_left/3 if battle.dynamax_turns_left != None else -1
         moves_status_effects = np.zeros(4)
 
         for i,pokemon in enumerate(battle.available_switches):
@@ -55,28 +55,29 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
                         battle.opponent_active_pokemon.type_1,
                         battle.opponent_active_pokemon.type_2,)
                 team_multiplyer[i] *= secondTypeMultiplyer
+            team_multiplyer[i] /= 4
 
 
-        # for i,pokemon in enumerate(battle.team.values()):
-        #     i = i*2
-        #     if pokemon.fainted:
-        #         team_type[i] = 0
-        #         team_type[i + 1] = 0
-        #     else:
-        #         team_type[i] = pokemon.type_1.value/19 if pokemon.type_1 != None else 0
-        #         team_type[i + 1] =  pokemon.type_2.value/19 if pokemon.type_2 != None else 0
+        for i,pokemon in enumerate(battle.team.values()):
+            i = i*2
+            if pokemon.fainted:
+                team_type[i] = 0
+                team_type[i + 1] = 0
+            else:
+                team_type[i] = pokemon.type_1.value/19 if pokemon.type_1 != None else 0
+                team_type[i + 1] =  pokemon.type_2.value/19 if pokemon.type_2 != None else 0
 
-        # for i, pokemon in enumerate(battle.opponent_team.values()):
-        #     i = i*2
-        #     if pokemon.fainted:
-        #         team_type[i] = 0
-        #         team_type[i + 1] = 0
-        #     else:
-        #         opponent_team_type[i] = pokemon.type_1.value/19 if pokemon.type_1 != None else 0
-        #         opponent_team_type[i + 1] =  pokemon.type_2.value/19 if pokemon.type_2 != None else 0
+        for i, pokemon in enumerate(battle.opponent_team.values()):
+            i = i*2
+            if pokemon.fainted:
+                team_type[i] = 0
+                team_type[i + 1] = 0
+            else:
+                opponent_team_type[i] = pokemon.type_1.value/19 if pokemon.type_1 != None else 0
+                opponent_team_type[i + 1] =  pokemon.type_2.value/19 if pokemon.type_2 != None else 0
 
         for i, move in enumerate(battle.available_moves):
-            moves_status_effects[i] = move.status.value if move.status != None else 0
+            moves_status_effects[i] = move.status.value/7 if move.status != None else 0
             moves_base_power[i] = (
                 move.base_power / 100
             )  # Simple rescaling to facilitate learning
@@ -100,6 +101,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
                 [fainted_mon_team, fainted_mon_opponent],
                 can_dynamax,
                 dynamax_turn,
+                team_type,
+                opponent_team_type,
                 team_multiplyer,
                 moves_status_effects
             ]
@@ -108,8 +111,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
 
     def describe_embedding(self) -> Space:
         low = [-1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, -1]
-        # typeLowerBound = [0]*24
-        # low = low + typeLowerBound
+        typeLowerBound = [0]*24
+        low = low + typeLowerBound
         teamMultiplyerLower = [-1]*6
         moveStatusLower = [0]*4
         low += teamMultiplyerLower
@@ -117,10 +120,10 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         
 
         high = [3, 3, 3, 3, 4, 4, 4, 4, 1, 1, 1, 3]
-        # typeUpperBound = [1]*24 
-        # high += typeUpperBound
+        typeUpperBound = [1]*24 
+        high += typeUpperBound
         teamMultiplyerUpper = [4]*6
-        moveStatusUpper = [7]*4
+        moveStatusUpper = [1]*4
         high += teamMultiplyerUpper
         high += moveStatusUpper
 
@@ -158,10 +161,10 @@ async def main():
     input_shape = (1,) + train_env.observation_space.shape
     # Create model
     model = Sequential()
-    model.add(Dense(128, activation="elu", input_shape=input_shape))
+    model.add(Dense(512, activation="elu", input_shape=input_shape))
     model.add(Flatten())
+    model.add(Dense(256, activation="elu"))
     model.add(Dense(64, activation="elu"))
-    # model.add(Dense(32, activation="elu"))
     model.add(Dense(n_action, activation="linear"))
 
     # Defining the DQN
@@ -192,11 +195,11 @@ async def main():
     # Training the model
     dqn.fit(train_env, nb_steps=30000)
     second_opponent = MaxBasePowerPlayer(battle_format="gen8randombattle")
-    # train_env.reset_env(restart=True, opponent=second_opponent)
-    # dqn.fit(train_env, nb_steps=20000)
+    train_env.reset_env(restart=True, opponent=second_opponent)
+    dqn.fit(train_env, nb_steps=30000)
     third_opponent = SimpleHeuristicsPlayer(battle_format="gen8randombattle")
-    # train_env.reset_env(restart=True, opponent=third_opponent)
-    # dqn.fit(train_env, nb_steps=50000)
+    train_env.reset_env(restart=True, opponent=third_opponent)
+    dqn.fit(train_env, nb_steps=30000)
     train_env.close()
 
     # Evaluating the model
