@@ -42,6 +42,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         team_multiplyer = -np.ones(6)
         dynamax_turn = np.ones(1)
         dynamax_turn[0] = battle.dynamax_turns_left if battle.dynamax_turns_left != None else -1
+        moves_status_effects = np.zeros(4)
 
         for i,pokemon in enumerate(battle.available_switches):
             firstTypeMultiplyer = pokemon.type_1.damage_multiplier(
@@ -75,6 +76,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         #         opponent_team_type[i + 1] =  pokemon.type_2.value/19 if pokemon.type_2 != None else 0
 
         for i, move in enumerate(battle.available_moves):
+            moves_status_effects[i] = move.status.value if move.status != None else 0
             moves_base_power[i] = (
                 move.base_power / 100
             )  # Simple rescaling to facilitate learning
@@ -99,6 +101,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
                 can_dynamax,
                 dynamax_turn,
                 team_multiplyer,
+                moves_status_effects
             ]
         )
         return np.float32(final_vector)
@@ -108,13 +111,18 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         # typeLowerBound = [0]*24
         # low = low + typeLowerBound
         teamMultiplyerLower = [-1]*6
+        moveStatusLower = [0]*4
         low += teamMultiplyerLower
+        low += moveStatusLower
+        
 
         high = [3, 3, 3, 3, 4, 4, 4, 4, 1, 1, 1, 3]
         # typeUpperBound = [1]*24 
         # high += typeUpperBound
         teamMultiplyerUpper = [4]*6
+        moveStatusUpper = [7]*4
         high += teamMultiplyerUpper
+        high += moveStatusUpper
 
 
         return Box(
@@ -148,12 +156,12 @@ async def main():
     # Compute dimensions
     n_action = train_env.action_space.n
     input_shape = (1,) + train_env.observation_space.shape
-
     # Create model
     model = Sequential()
     model.add(Dense(128, activation="elu", input_shape=input_shape))
     model.add(Flatten())
     model.add(Dense(64, activation="elu"))
+    # model.add(Dense(32, activation="elu"))
     model.add(Dense(n_action, activation="linear"))
 
     # Defining the DQN
