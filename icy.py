@@ -7,6 +7,7 @@ from rl.agents.dqn import DQNAgent
 from rl.memory import SequentialMemory
 from rl.policy import LinearAnnealedPolicy, EpsGreedyQPolicy
 from tabulate import tabulate
+from tensorflow.keras import Input
 from tensorflow.keras.layers import Dense, Flatten
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
@@ -127,7 +128,6 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         high += teamMultiplyerUpper
         high += moveStatusUpper
 
-
         return Box(
             np.array(low, dtype=np.float32),
             np.array(high, dtype=np.float32),
@@ -147,7 +147,9 @@ async def main():
 
     # Create one environment for training and one for evaluation
     opponent = RandomPlayer(battle_format="gen8randombattle")
-    train_env = SimpleRLPlayer(battle_format="gen8randombattle", opponent=opponent, start_challenging=True)
+    second_opponent = MaxBasePowerPlayer(battle_format="gen8randombattle")
+    third_opponent = SimpleHeuristicsPlayer(battle_format="gen8randombattle")
+    train_env = SimpleRLPlayer(battle_format="gen8randombattle", opponent=second_opponent, start_challenging=True)
     train_env = wrap_for_old_gym_api(train_env)
 
     opponent = RandomPlayer(battle_format="gen8randombattle")
@@ -159,12 +161,12 @@ async def main():
     # Compute dimensions
     n_action = train_env.action_space.n
     input_shape = (1,) + train_env.observation_space.shape
+
     # Create model
     model = Sequential()
-    model.add(Dense(512, activation="elu", input_shape=input_shape))
+    model.add(Dense(46, activation="elu", input_shape=input_shape))
     model.add(Flatten())
-    model.add(Dense(256, activation="elu"))
-    model.add(Dense(64, activation="elu"))
+    model.add(Dense(32, activation="elu"))
     model.add(Dense(n_action, activation="linear"))
 
     # Defining the DQN
@@ -190,16 +192,14 @@ async def main():
         delta_clip=0.01,
         enable_double_dqn=True,
     )
-    dqn.compile(Adam(learning_rate=0.00025), metrics=["mae"])
+    dqn.compile(Adam(learning_rate=0.00025,decay=.00000001), metrics=["mae"])
 
     # Training the model
     dqn.fit(train_env, nb_steps=30000)
-    second_opponent = MaxBasePowerPlayer(battle_format="gen8randombattle")
-    train_env.reset_env(restart=True, opponent=second_opponent)
-    dqn.fit(train_env, nb_steps=30000)
-    third_opponent = SimpleHeuristicsPlayer(battle_format="gen8randombattle")
-    train_env.reset_env(restart=True, opponent=third_opponent)
-    dqn.fit(train_env, nb_steps=30000)
+    # train_env.reset_env(restart=True, opponent=second_opponent)
+    # dqn.fit(train_env, nb_steps=40000)
+    # train_env.reset_env(restart=True, opponent=third_opponent)
+    # dqn.fit(train_env, nb_steps=60000)
     train_env.close()
 
     # Evaluating the model
