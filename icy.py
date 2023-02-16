@@ -8,7 +8,7 @@ from rl.memory import SequentialMemory
 from rl.policy import LinearAnnealedPolicy, EpsGreedyQPolicy
 from tabulate import tabulate
 from tensorflow.keras import Input
-from tensorflow.keras.layers import Dense, Flatten
+from tensorflow.keras.layers import Dense, Flatten, Normalization
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
 
@@ -165,6 +165,7 @@ async def main():
     # Create model
     model = Sequential()
     model.add(Dense(46, activation="elu", input_shape=input_shape))
+    model.add(Normalization())
     model.add(Flatten())
     model.add(Dense(32, activation="elu"))
     model.add(Dense(n_action, activation="linear"))
