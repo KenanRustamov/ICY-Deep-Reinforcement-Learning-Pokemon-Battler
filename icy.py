@@ -48,7 +48,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         opponent_side_conditions = np.zeros(20)
         team_health = np.zeros(6)
         opponent_team_health = np.zeros(6)
-
+        active_fields = np.zeros(12)
+        active_pokemon_side_conditions = np.zeros(20)
 
         can_dynamax[0] = 1 if battle.can_dynamax else 0
         dynamax_turn[0] = battle.dynamax_turns_left/3 if battle.dynamax_turns_left != None else -1
@@ -56,9 +57,15 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         current_weather[0] = 0 if len(battle.weather) == 0 else list(battle.weather.items())[0][0].value
         opponent_can_dynamax[0] = 1 if battle._opponent_can_dynamax else 0
 
+        for field,turn in battle.fields.items():
+            active_fields[field.value - 1] = 1
+
         for sideCondition,val in battle.opponent_side_conditions.items():
-            opponent_side_conditions[sideCondition.value] = 1
-        # print(battle.available_switches)
+            opponent_side_conditions[sideCondition.value - 1] = 1
+        
+        for sideCondition,val in battle.side_conditions.items():
+            active_pokemon_side_conditions[sideCondition.value - 1] = 1
+
         for i,pokemon in enumerate(battle.available_switches):
             firstTypeMultiplyer = pokemon.type_1.damage_multiplier(
                     battle.opponent_active_pokemon.type_1,
@@ -127,7 +134,9 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
                 opponent_can_dynamax,
                 opponent_side_conditions,
                 team_health,
-                opponent_team_health
+                opponent_team_health,
+                active_fields,
+                active_pokemon_side_conditions
             ]
         )
         return np.float32(final_vector)
@@ -143,6 +152,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         opponentSideConditionsLower = [0]*20
         teamHealthLower = [0]*6
         opponentTeamHealthLower = [0]*6
+        activeFieldsLower = [0]*12
+        activePokemonSideConditionsLower = [0]*20
 
         low += typeLowerBound
         low += teamMultiplyerLower
@@ -153,6 +164,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         low += opponentSideConditionsLower
         low += teamHealthLower
         low += opponentTeamHealthLower
+        low += activeFieldsLower
+        low += activePokemonSideConditionsLower
         
 
         high = [3, 3, 3, 3, 4, 4, 4, 4, 1, 1, 1, 3]
@@ -165,6 +178,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         opponentSideConditionsUpper = [1]*20
         teamHealthUpper = [1]*6
         opponentTeamHealthUpper = [1]*6
+        activeFieldsUpper = [0]*12
+        activePokemonSideConditionsUpper = [1]*20
 
         high += typeUpperBound
         high += teamMultiplyerUpper
@@ -175,6 +190,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         high += opponentSideConditionsUpper
         high += teamHealthUpper
         high += opponentTeamHealthUpper
+        high += activeFieldsUpper
+        high += activePokemonSideConditionsUpper
 
         return Box(
             np.array(low, dtype=np.float32),
