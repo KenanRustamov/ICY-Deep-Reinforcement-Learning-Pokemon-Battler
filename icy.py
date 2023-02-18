@@ -56,7 +56,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         can_dynamax[0] = 1 if battle.can_dynamax else 0
         dynamax_turn[0] = battle.dynamax_turns_left/3 if battle.dynamax_turns_left != None else -1
         opponent_dynamax_turn[0] = battle.opponent_dynamax_turns_left/3 if battle.opponent_dynamax_turns_left != None else -1
-        current_weather[0] = 0 if len(battle.weather) == 0 else list(battle.weather.items())[0][0].value
+        current_weather[0] = 0 if len(battle.weather) == 0 else list(battle.weather.items())[0][0].value/8
         opponent_can_dynamax[0] = 1 if battle._opponent_can_dynamax else 0
         active_opponent_status[0] = battle.opponent_active_pokemon.status.value/6 if battle.opponent_active_pokemon.status else 0
         active_pokemon_status[0] = battle.active_pokemon.status.value/6 if battle.active_pokemon.status else 0
@@ -110,19 +110,16 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         for i, move in enumerate(battle.available_moves):
             moves_status_effects[i] = move.status.value/7 if move.status != None else 0
             moves_base_power[i] = (
-                move.base_power / 100
+                move.base_power / 300
             )  # Simple rescaling to facilitate learning
             if move.type:
                 moves_dmg_multiplier[i] = move.type.damage_multiplier(
                     battle.opponent_active_pokemon.type_1,
-                    battle.opponent_active_pokemon.type_2,
-                )
+                    battle.opponent_active_pokemon.type_2,) / 4
 
         # We count how many pokemons have fainted in each team
         fainted_mon_team = len([mon for mon in battle.team.values() if mon.fainted]) / 6
-        fainted_mon_opponent = (
-            len([mon for mon in battle.opponent_team.values() if mon.fainted]) / 6
-        )
+        fainted_mon_opponent = (len([mon for mon in battle.opponent_team.values() if mon.fainted]) / 6)
 
         # Final vector with 12 components
         final_vector = np.concatenate(
@@ -151,8 +148,15 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         return np.float32(final_vector)
 
     def describe_embedding(self) -> Space:
-        low = [-1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, -1]
-        typeLowerBound = [0]*24
+        low = []
+        moveBasePowerLower = [-1]*4
+        moveDamageMultiplyerLower = [0]*4
+        faintedTeamLower = [0]
+        faintedOpponentTeamLower = [0]
+        canDynamaxLower = [0]
+        dynamaxTurnLower = [-1]
+        teamTypeLower= [0]*12
+        opponentTeamTypeLower = [0]*12
         teamMultiplyerLower = [-1]*6
         moveStatusLower = [0]*4
         currentWeatherLower = [0]
@@ -166,7 +170,14 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         activeOpponentStatusLower = [0]
         activePokemonStatusLower = [0]
 
-        low += typeLowerBound
+        low += moveBasePowerLower
+        low += moveDamageMultiplyerLower
+        low += faintedTeamLower
+        low += faintedOpponentTeamLower
+        low += canDynamaxLower
+        low += dynamaxTurnLower
+        low += teamTypeLower
+        low += opponentTeamTypeLower
         low += teamMultiplyerLower
         low += moveStatusLower
         low += currentWeatherLower
@@ -181,12 +192,19 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         low += activePokemonStatusLower
         
 
-        high = [3, 3, 3, 3, 4, 4, 4, 4, 1, 1, 1, 3]
-        typeUpperBound = [1]*24 
-        teamMultiplyerUpper = [4]*6
+        high = []
+        moveBasePowerUpper = [1]*4
+        moveDamageMultiplyerUpper = [1]*4
+        faintedTeamUpper = [1]
+        faintedOpponentTeamUpper = [1]
+        canDynamaxUpper = [1]
+        dynamaxTurnUpper = [1]
+        teamTypeUpper = [1]*12
+        opponentTeamTypeUpper = [1]*12
+        teamMultiplyerUpper = [1]*6
         moveStatusUpper = [1]*4
-        currentWeatherUpper = [8]
-        opponentDynamaxTurnUpper = [3]
+        currentWeatherUpper = [1]
+        opponentDynamaxTurnUpper = [1]
         opponentCanDynamaxUpper = [1]
         opponentSideConditionsUpper = [1]*20
         teamHealthUpper = [1]*6
@@ -195,8 +213,15 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         activePokemonSideConditionsUpper = [1]*20
         activeOpponentStatusUpper = [1]
         activePokemonStatusUpper = [1]
-
-        high += typeUpperBound
+        
+        high += moveBasePowerUpper
+        high += moveDamageMultiplyerUpper
+        high += faintedTeamUpper
+        high += faintedOpponentTeamUpper
+        high += canDynamaxUpper
+        high += dynamaxTurnUpper
+        high += teamTypeUpper
+        high += opponentTeamTypeUpper
         high += teamMultiplyerUpper
         high += moveStatusUpper
         high += currentWeatherUpper
@@ -219,7 +244,7 @@ def buildModelLayers(model,inputShape, outputLen):
     model.add(Dense(inputShape[1], activation="elu", input_shape=inputShape))
     model.add(Normalization())
     model.add(Flatten())
-    model.add(Dense(32, activation="elu"))
+    model.add(Dense(32, activation="relu"))
     model.add(Dense(outputLen, activation="linear"))
 
 def restartAndTrainRandom(dqn, steps, trainingEnv):
@@ -249,7 +274,7 @@ async def main():
     opponent = RandomPlayer(battle_format="gen8randombattle")
     second_opponent = MaxBasePowerPlayer(battle_format="gen8randombattle")
     third_opponent = SimpleHeuristicsPlayer(battle_format="gen8randombattle")
-    train_env = SimpleRLPlayer(battle_format="gen8randombattle", opponent=second_opponent, start_challenging=True)
+    train_env = SimpleRLPlayer(battle_format="gen8randombattle", opponent=opponent, start_challenging=True)
     train_env = wrap_for_old_gym_api(train_env)
 
     eval_env = SimpleRLPlayer(
@@ -298,9 +323,9 @@ async def main():
     # Training the model
     dqn.fit(train_env, nb_steps=40000)
 
-    restartAndTrainMaxDamage(dqn, 40000,train_env)
-    restartAndTrainHeuristic(dqn, 10000, train_env)
-    restartAndTrainMaxDamage(dqn, 10000,train_env)
+    # restartAndTrainMaxDamage(dqn, 40000,train_env)
+    # restartAndTrainHeuristic(dqn, 10000, train_env)
+    # restartAndTrainMaxDamage(dqn, 10000,train_env)
 
     train_env.close()
 
