@@ -37,13 +37,16 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         moves_base_power = -np.ones(4)
         moves_dmg_multiplier = np.ones(4)
         can_dynamax = np.ones(1)
-        can_dynamax[0] = 1 if battle.can_dynamax else 0
         team_type = np.zeros(12)
         opponent_team_type = np.zeros(12)
         team_multiplyer = -np.ones(6)
         dynamax_turn = np.ones(1)
-        dynamax_turn[0] = battle.dynamax_turns_left/3 if battle.dynamax_turns_left != None else -1
         moves_status_effects = np.zeros(4)
+        current_weather = np.zeros(1)
+
+        can_dynamax[0] = 1 if battle.can_dynamax else 0
+        dynamax_turn[0] = battle.dynamax_turns_left/3 if battle.dynamax_turns_left != None else -1
+        current_weather[0] = 0 if len(battle.weather) == 0 else list(battle.weather.items())[0][0].value
 
         for i,pokemon in enumerate(battle.available_switches):
             firstTypeMultiplyer = pokemon.type_1.damage_multiplier(
@@ -105,7 +108,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
                 team_type,
                 opponent_team_type,
                 team_multiplyer,
-                moves_status_effects
+                moves_status_effects,
+                current_weather
             ]
         )
         return np.float32(final_vector)
@@ -113,26 +117,38 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
     def describe_embedding(self) -> Space:
         low = [-1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, -1]
         typeLowerBound = [0]*24
-        low = low + typeLowerBound
         teamMultiplyerLower = [-1]*6
         moveStatusLower = [0]*4
+        currentWeatherLower = [0]
+
+        low += typeLowerBound
         low += teamMultiplyerLower
         low += moveStatusLower
+        low += currentWeatherLower
         
 
         high = [3, 3, 3, 3, 4, 4, 4, 4, 1, 1, 1, 3]
         typeUpperBound = [1]*24 
-        high += typeUpperBound
         teamMultiplyerUpper = [4]*6
         moveStatusUpper = [1]*4
+        currentWeatherUpper = [8]
+
+        high += typeUpperBound
         high += teamMultiplyerUpper
         high += moveStatusUpper
+        high += currentWeatherUpper
 
         return Box(
             np.array(low, dtype=np.float32),
             np.array(high, dtype=np.float32),
             dtype=np.float32,
         )
+def buildModelLayers(model,inputShape, outputLen):
+    model.add(Dense(46, activation="elu", input_shape=inputShape))
+    model.add(Normalization())
+    model.add(Flatten())
+    model.add(Dense(32, activation="elu"))
+    model.add(Dense(outputLen, activation="linear"))
 
 
 async def main():
@@ -154,7 +170,7 @@ async def main():
 
     opponent = RandomPlayer(battle_format="gen8randombattle")
     eval_env = SimpleRLPlayer(
-        battle_format="gen8randombattle", opponent=opponent, start_challenging=True
+        battle_format="gen8randombattle", opponent=third_opponent, start_challenging=True
     )
     eval_env = wrap_for_old_gym_api(eval_env)
 
@@ -193,30 +209,58 @@ async def main():
         delta_clip=0.01,
         enable_double_dqn=True,
     )
-    dqn.compile(Adam(learning_rate=0.00025,decay=.00000001), metrics=["mae"])
+    dqn.compile(Adam(learning_rate=0.00025), metrics=["mae"])
 
     # Training the model
-    dqn.fit(train_env, nb_steps=10000)
-    train_env.reset_env(restart=True, opponent=second_opponent)
-    dqn.fit(train_env, nb_steps=20000)
-    # train_env.reset_env(restart=True, opponent=third_opponent)
-    # dqn.fit(train_env, nb_steps=60000)
+    # dqn.fit(train_env, nb_steps=20000)
+
+    # train_env.reset_env(restart=True, opponent=MaxBasePowerPlayer(battle_format="gen8randombattle"))
+    # dqn.fit(train_env, nb_steps=30000)
+
+    # train_env.reset_env(restart=True, opponent=RandomPlayer(battle_format="gen8randombattle"))
+    # dqn.fit(train_env, nb_steps=10000)
+
+    # train_env.reset_env(restart=True, opponent=MaxBasePowerPlayer(battle_format="gen8randombattle"))
+    dqn.fit(train_env, nb_steps=40000)
+
+    # train_env.reset_env(restart=True, opponent=SimpleHeuristicsPlayer(battle_format="gen8randombattle"))
+    # dqn.fit(train_env, nb_steps=10000)
+
+    # train_env.reset_env(restart=True, opponent=RandomPlayer(battle_format="gen8randombattle"))
+    # dqn.fit(train_env, nb_steps=10000)
+
+    # train_env.reset_env(restart=True, opponent=MaxBasePowerPlayer(battle_format="gen8randombattle"))
+    # dqn.fit(train_env, nb_steps=30000)
+
+    # train_env.reset_env(restart=True, opponent=SimpleHeuristicsPlayer(battle_format="gen8randombattle"))
+    # dqn.fit(train_env, nb_steps=20000)
+
+    # train_env.reset_env(restart=True, opponent=MaxBasePowerPlayer(battle_format="gen8randombattle"))
+    # dqn.fit(train_env, nb_steps=20000)
+
     train_env.close()
 
     # Evaluating the model
-    print("Results against random player:")
-    dqn.test(eval_env, nb_episodes=100, verbose=False, visualize=False)
-    print(
-        f"DQN Evaluation: {eval_env.n_won_battles} victories out of {eval_env.n_finished_battles} episodes"
-    )
-    eval_env.reset_env(restart=True, opponent=second_opponent)
-
-    print("Results against max base power player:")
+    print("Results against heuristic player:")
     dqn.test(eval_env, nb_episodes=100, verbose=False, visualize=False)
     print(
         f"DQN Evaluation: {eval_env.n_won_battles} victories out of {eval_env.n_finished_battles} episodes"
     )
     eval_env.reset_env(restart=False)
+
+    # print("Results against random player:")
+    # dqn.test(eval_env, nb_episodes=100, verbose=False, visualize=False)
+    # print(
+    #     f"DQN Evaluation: {eval_env.n_won_battles} victories out of {eval_env.n_finished_battles} episodes"
+    # )
+    # eval_env.reset_env(restart=True, opponent=second_opponent)
+
+    # print("Results against max base power player:")
+    # dqn.test(eval_env, nb_episodes=100, verbose=False, visualize=False)
+    # print(
+    #     f"DQN Evaluation: {eval_env.n_won_battles} victories out of {eval_env.n_finished_battles} episodes"
+    # )
+    # eval_env.reset_env(restart=False)
 
     # Evaluate the player with included util method
     n_challenges = 250
