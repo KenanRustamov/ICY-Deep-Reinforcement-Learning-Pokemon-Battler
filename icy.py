@@ -43,11 +43,22 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         dynamax_turn = np.ones(1)
         moves_status_effects = np.zeros(4)
         current_weather = np.zeros(1)
+        opponent_dynamax_turn = np.ones(1)
+        opponent_can_dynamax = np.ones(1)
+        opponent_side_conditions = np.zeros(20)
+        team_health = np.zeros(6)
+        opponent_team_health = np.zeros(6)
+
 
         can_dynamax[0] = 1 if battle.can_dynamax else 0
         dynamax_turn[0] = battle.dynamax_turns_left/3 if battle.dynamax_turns_left != None else -1
+        opponent_dynamax_turn[0] = battle.opponent_dynamax_turns_left/3 if battle.opponent_dynamax_turns_left != None else -1
         current_weather[0] = 0 if len(battle.weather) == 0 else list(battle.weather.items())[0][0].value
+        opponent_can_dynamax[0] = 1 if battle._opponent_can_dynamax else 0
 
+        for sideCondition,val in battle.opponent_side_conditions.items():
+            opponent_side_conditions[sideCondition.value] = 1
+        # print(battle.available_switches)
         for i,pokemon in enumerate(battle.available_switches):
             firstTypeMultiplyer = pokemon.type_1.damage_multiplier(
                     battle.opponent_active_pokemon.type_1,
@@ -61,7 +72,6 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
                 team_multiplyer[i] *= secondTypeMultiplyer
             team_multiplyer[i] /= 4
 
-
         for i,pokemon in enumerate(battle.team.values()):
             i = i*2
             if pokemon.fainted:
@@ -70,6 +80,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
             else:
                 team_type[i] = pokemon.type_1.value/19 if pokemon.type_1 != None else 0
                 team_type[i + 1] =  pokemon.type_2.value/19 if pokemon.type_2 != None else 0
+                team_health[i//2] = pokemon.current_hp/800 if pokemon.current_hp else 0 #divide by maximum possible HP
+
 
         for i, pokemon in enumerate(battle.opponent_team.values()):
             i = i*2
@@ -79,6 +91,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
             else:
                 opponent_team_type[i] = pokemon.type_1.value/19 if pokemon.type_1 != None else 0
                 opponent_team_type[i + 1] =  pokemon.type_2.value/19 if pokemon.type_2 != None else 0
+                opponent_team_health[i//2] = pokemon.current_hp/800 if pokemon.current_hp else 0#divide by maximum possible HP
 
         for i, move in enumerate(battle.available_moves):
             moves_status_effects[i] = move.status.value/7 if move.status != None else 0
@@ -109,7 +122,12 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
                 opponent_team_type,
                 team_multiplyer,
                 moves_status_effects,
-                current_weather
+                current_weather,
+                opponent_dynamax_turn,
+                opponent_can_dynamax,
+                opponent_side_conditions,
+                team_health,
+                opponent_team_health
             ]
         )
         return np.float32(final_vector)
@@ -120,11 +138,21 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         teamMultiplyerLower = [-1]*6
         moveStatusLower = [0]*4
         currentWeatherLower = [0]
+        opponentDynamaxTurnLower = [-1]
+        opponentCanDynamaxLower = [0]
+        opponentSideConditionsLower = [0]*20
+        teamHealthLower = [0]*6
+        opponentTeamHealthLower = [0]*6
 
         low += typeLowerBound
         low += teamMultiplyerLower
         low += moveStatusLower
         low += currentWeatherLower
+        low += opponentDynamaxTurnLower
+        low += opponentCanDynamaxLower
+        low += opponentSideConditionsLower
+        low += teamHealthLower
+        low += opponentTeamHealthLower
         
 
         high = [3, 3, 3, 3, 4, 4, 4, 4, 1, 1, 1, 3]
@@ -132,11 +160,21 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         teamMultiplyerUpper = [4]*6
         moveStatusUpper = [1]*4
         currentWeatherUpper = [8]
+        opponentDynamaxTurnUpper = [3]
+        opponentCanDynamaxUpper = [1]
+        opponentSideConditionsUpper = [1]*20
+        teamHealthUpper = [1]*6
+        opponentTeamHealthUpper = [1]*6
 
         high += typeUpperBound
         high += teamMultiplyerUpper
         high += moveStatusUpper
         high += currentWeatherUpper
+        high += opponentDynamaxTurnUpper
+        high += opponentCanDynamaxUpper
+        high += opponentSideConditionsUpper
+        high += teamHealthUpper
+        high += opponentTeamHealthUpper
 
         return Box(
             np.array(low, dtype=np.float32),
@@ -144,7 +182,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
             dtype=np.float32,
         )
 def buildModelLayers(model,inputShape, outputLen):
-    model.add(Dense(46, activation="elu", input_shape=inputShape))
+    model.add(Dense(inputShape[1], activation="elu", input_shape=inputShape))
     model.add(Normalization())
     model.add(Flatten())
     model.add(Dense(32, activation="elu"))
@@ -165,7 +203,7 @@ async def main():
     opponent = RandomPlayer(battle_format="gen8randombattle")
     second_opponent = MaxBasePowerPlayer(battle_format="gen8randombattle")
     third_opponent = SimpleHeuristicsPlayer(battle_format="gen8randombattle")
-    train_env = SimpleRLPlayer(battle_format="gen8randombattle", opponent=opponent, start_challenging=True)
+    train_env = SimpleRLPlayer(battle_format="gen8randombattle", opponent=second_opponent, start_challenging=True)
     train_env = wrap_for_old_gym_api(train_env)
 
     opponent = RandomPlayer(battle_format="gen8randombattle")
@@ -177,13 +215,14 @@ async def main():
     # Compute dimensions
     n_action = train_env.action_space.n
     input_shape = (1,) + train_env.observation_space.shape
+    print(input_shape)
 
     # Create model
     model = Sequential()
-    model.add(Dense(46, activation="elu", input_shape=input_shape))
+    model.add(Dense(input_shape[1], activation="elu", input_shape=input_shape))
     model.add(Normalization())
     model.add(Flatten())
-    model.add(Dense(32, activation="elu"))
+    model.add(Dense((input_shape[1] + n_action)//2, activation="elu"))
     model.add(Dense(n_action, activation="linear"))
 
     # Defining the DQN
