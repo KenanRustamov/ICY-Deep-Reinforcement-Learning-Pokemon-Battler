@@ -50,12 +50,19 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         opponent_team_health = np.zeros(6)
         active_fields = np.zeros(12)
         active_pokemon_side_conditions = np.zeros(20)
+        active_opponent_status = np.zeros(1)
+        active_pokemon_status = np.zeros(1)
 
         can_dynamax[0] = 1 if battle.can_dynamax else 0
         dynamax_turn[0] = battle.dynamax_turns_left/3 if battle.dynamax_turns_left != None else -1
         opponent_dynamax_turn[0] = battle.opponent_dynamax_turns_left/3 if battle.opponent_dynamax_turns_left != None else -1
         current_weather[0] = 0 if len(battle.weather) == 0 else list(battle.weather.items())[0][0].value
         opponent_can_dynamax[0] = 1 if battle._opponent_can_dynamax else 0
+        active_opponent_status[0] = battle.opponent_active_pokemon.status.value/6 if battle.opponent_active_pokemon.status else 0
+        active_pokemon_status[0] = battle.active_pokemon.status.value/6 if battle.active_pokemon.status else 0
+
+        # for effect, val in battle.opponent_active_pokemon.effects().items():
+            # print(effect)
 
         for field,turn in battle.fields.items():
             active_fields[field.value - 1] = 1
@@ -136,7 +143,9 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
                 team_health,
                 opponent_team_health,
                 active_fields,
-                active_pokemon_side_conditions
+                active_pokemon_side_conditions,
+                active_opponent_status,
+                active_pokemon_status
             ]
         )
         return np.float32(final_vector)
@@ -154,6 +163,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         opponentTeamHealthLower = [0]*6
         activeFieldsLower = [0]*12
         activePokemonSideConditionsLower = [0]*20
+        activeOpponentStatusLower = [0]
+        activePokemonStatusLower = [0]
 
         low += typeLowerBound
         low += teamMultiplyerLower
@@ -166,6 +177,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         low += opponentTeamHealthLower
         low += activeFieldsLower
         low += activePokemonSideConditionsLower
+        low += activeOpponentStatusLower
+        low += activePokemonStatusLower
         
 
         high = [3, 3, 3, 3, 4, 4, 4, 4, 1, 1, 1, 3]
@@ -180,6 +193,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         opponentTeamHealthUpper = [1]*6
         activeFieldsUpper = [0]*12
         activePokemonSideConditionsUpper = [1]*20
+        activeOpponentStatusUpper = [1]
+        activePokemonStatusUpper = [1]
 
         high += typeUpperBound
         high += teamMultiplyerUpper
@@ -192,6 +207,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         high += opponentTeamHealthUpper
         high += activeFieldsUpper
         high += activePokemonSideConditionsUpper
+        high += activeOpponentStatusUpper
+        high += activePokemonStatusUpper
 
         return Box(
             np.array(low, dtype=np.float32),
@@ -204,6 +221,18 @@ def buildModelLayers(model,inputShape, outputLen):
     model.add(Flatten())
     model.add(Dense(32, activation="elu"))
     model.add(Dense(outputLen, activation="linear"))
+
+def restartAndTrainRandom(dqn, steps, trainingEnv):
+    trainingEnv.reset_env(restart=True, opponent=RandomPlayer(battle_format="gen8randombattle"))
+    dqn.fit(trainingEnv, nb_steps=steps)
+
+def restartAndTrainMaxDamage(dqn, steps, trainingEnv):
+    trainingEnv.reset_env(restart=True, opponent=MaxBasePowerPlayer(battle_format="gen8randombattle"))
+    dqn.fit(trainingEnv, nb_steps=steps)
+
+def restartAndTrainHeuristic(dqn, steps, trainingEnv):
+    trainingEnv.reset_env(restart=True, opponent=SimpleHeuristicsPlayer(battle_format="gen8randombattle"))
+    dqn.fit(trainingEnv, nb_steps=steps)
 
 
 async def main():
@@ -223,7 +252,6 @@ async def main():
     train_env = SimpleRLPlayer(battle_format="gen8randombattle", opponent=second_opponent, start_challenging=True)
     train_env = wrap_for_old_gym_api(train_env)
 
-    opponent = RandomPlayer(battle_format="gen8randombattle")
     eval_env = SimpleRLPlayer(
         battle_format="gen8randombattle", opponent=third_opponent, start_challenging=True
     )
@@ -268,31 +296,11 @@ async def main():
     dqn.compile(Adam(learning_rate=0.00025), metrics=["mae"])
 
     # Training the model
-    # dqn.fit(train_env, nb_steps=20000)
-
-    # train_env.reset_env(restart=True, opponent=MaxBasePowerPlayer(battle_format="gen8randombattle"))
-    # dqn.fit(train_env, nb_steps=30000)
-
-    # train_env.reset_env(restart=True, opponent=RandomPlayer(battle_format="gen8randombattle"))
-    # dqn.fit(train_env, nb_steps=10000)
-
-    # train_env.reset_env(restart=True, opponent=MaxBasePowerPlayer(battle_format="gen8randombattle"))
     dqn.fit(train_env, nb_steps=40000)
 
-    # train_env.reset_env(restart=True, opponent=SimpleHeuristicsPlayer(battle_format="gen8randombattle"))
-    # dqn.fit(train_env, nb_steps=10000)
-
-    # train_env.reset_env(restart=True, opponent=RandomPlayer(battle_format="gen8randombattle"))
-    # dqn.fit(train_env, nb_steps=10000)
-
-    # train_env.reset_env(restart=True, opponent=MaxBasePowerPlayer(battle_format="gen8randombattle"))
-    # dqn.fit(train_env, nb_steps=30000)
-
-    # train_env.reset_env(restart=True, opponent=SimpleHeuristicsPlayer(battle_format="gen8randombattle"))
-    # dqn.fit(train_env, nb_steps=20000)
-
-    # train_env.reset_env(restart=True, opponent=MaxBasePowerPlayer(battle_format="gen8randombattle"))
-    # dqn.fit(train_env, nb_steps=20000)
+    restartAndTrainMaxDamage(dqn, 40000,train_env)
+    restartAndTrainHeuristic(dqn, 10000, train_env)
+    restartAndTrainMaxDamage(dqn, 10000,train_env)
 
     train_env.close()
 
