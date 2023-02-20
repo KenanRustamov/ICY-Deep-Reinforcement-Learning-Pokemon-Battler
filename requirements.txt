@@ -1,3 +1,9 @@
+gym
+numpy
+orjson
+requests
+tabulate
+websockets>=8.0
 asynctest
 black==22.6.0
 flake8
@@ -11,11 +17,5 @@ sphinx
 sphinx_rtd_theme
 twine
 wheel
-gym
-numpy
-orjson
-requests
-tabulate
-websockets>=8.0
 tensorflow<2.11
 keras-rl2
