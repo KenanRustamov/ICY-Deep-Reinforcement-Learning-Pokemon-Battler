@@ -244,7 +244,8 @@ def buildModelLayers(model,inputShape, outputLen):
     model.add(Dense(inputShape[1], activation="elu", input_shape=inputShape))
     model.add(Normalization())
     model.add(Flatten())
-    model.add(Dense(32, activation="relu"))
+    model.add(Dense(32, activation="elu"))
+    model.add(Normalization())
     model.add(Dense(outputLen, activation="linear"))
 
 def restartAndTrainRandom(dqn, steps, trainingEnv):
@@ -321,10 +322,10 @@ async def main():
     dqn.compile(Adam(learning_rate=0.00025), metrics=["mae"])
 
     # Training the model
-    dqn.fit(train_env, nb_steps=40000)
+    dqn.fit(train_env, nb_steps=10000)
 
-    # restartAndTrainMaxDamage(dqn, 40000,train_env)
-    # restartAndTrainHeuristic(dqn, 10000, train_env)
+    restartAndTrainMaxDamage(dqn, 30000,train_env)
+    # restartAndTrainHeuristic(dqn, 20000, train_env)
     # restartAndTrainMaxDamage(dqn, 10000,train_env)
 
     train_env.close()
