@@ -38,13 +38,13 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         opponentActivePokemon = battle.opponent_active_pokemon
 
         activePokemonMovesBasePower = -np.ones(4)
-        activePokemonMovesDmgMultiplier = np.ones(4)
+        activePokemonMovesDmgMultiplier = -np.ones(4)
         canDynamax = np.ones(1)
         teamTypes = np.zeros(12)
         opponentTeamTypes = np.zeros(12)
         teamDmgMultiplyer = -np.ones(6)
         dynamaxTurn = np.ones(1)
-        activePokemonMovesStatusEffects = np.zeros(4)
+        activePokemonMovesStatusEffects = -np.ones(4)
         currentWeather = np.zeros(1)
         opponentDyanamaxTurn = np.ones(1)
         opponentCanDynamax = np.ones(1)
@@ -123,21 +123,50 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
             activePokemonMovesBasePower[i] = (
                 move.base_power / 300
             )  # Simple rescaling to facilitate learning
-            if move.type:
+            if move.type and activePokemonMovesBasePower[i] > 0:
                 activePokemonMovesDmgMultiplier[i] = move.type.damage_multiplier(
                     opponentActivePokemon.type_1,
                     opponentActivePokemon.type_2,) / 4
 
         # We count how many pokemons have fainted in each team
-        fainted_mon_team = len([mon for mon in battle.team.values() if mon.fainted]) / 6
-        fainted_mon_opponent = (len([mon for mon in battle.opponent_team.values() if mon.fainted]) / 6)
+        faintedTeamPokemon = len([mon for mon in battle.team.values() if mon.fainted]) / 6
+        faintedOpponentTeamPokemon = (len([mon for mon in battle.opponent_team.values() if mon.fainted]) / 6)
+        #put -1 for inputs if the pokemon is already fainted
+        #for moves, actually show the status effect that is used not just a 1
+
+        # print()
+        # print()
+        # print("activePokemonMovesBasePower: ",activePokemonMovesBasePower)
+        # print("activePokemonMovesDmgMultiplier:",activePokemonMovesDmgMultiplier)
+        # print("canDynamax:",canDynamax)
+        # print("teamTypes:",teamTypes)
+        # print("opponentTeamTypes:",opponentTeamTypes)
+        # print("teamDmgMultiplyer :",teamDmgMultiplyer)
+        # print("dynamaxTurn:",dynamaxTurn)
+        # print("activePokemonMovesStatusEffects :",activePokemonMovesStatusEffects)
+        # print("currentWeather :",currentWeather)
+        # print("opponentDyanamaxTurn:",opponentDyanamaxTurn)
+        # print("opponentCanDynamax:",opponentCanDynamax)
+        # print("opponentSideConditions:",opponentSideConditions)
+        # print("teamHealth :",teamHealth)
+        # print("opponentTeamHealth :",opponentTeamHealth)
+        # print("activeFields:",activeFields)
+        # print("activePokemonSideConditions:",activePokemonSideConditions)
+        # print("activeOpponentPokemonStatus :",activeOpponentPokemonStatus)
+        # print("activePokemonStatus :",activePokemonStatus)
+        # print("activePokemonStats :",activePokemonStats)
+        # print("faintedTeamPokemon: ",faintedTeamPokemon)
+        # print("faintedOpponentTeamPokemon: ",faintedOpponentTeamPokemon)
+        # print()
+        # print()
+
 
         # Final vector with 12 components
         final_vector = np.concatenate(
             [
                 activePokemonMovesBasePower,
                 activePokemonMovesDmgMultiplier,
-                [fainted_mon_team, fainted_mon_opponent],
+                [faintedTeamPokemon, faintedOpponentTeamPokemon],
                 canDynamax,
                 dynamaxTurn,
                 teamTypes,
@@ -162,7 +191,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
     def describe_embedding(self) -> Space:
         low = []
         moveBasePowerLower = [-1]*4
-        moveDamageMultiplyerLower = [0]*4
+        moveDamageMultiplyerLower = [-1]*4
         faintedTeamLower = [0]
         faintedOpponentTeamLower = [0]
         canDynamaxLower = [0]
@@ -170,7 +199,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         teamTypeLower= [0]*12
         opponentTeamTypeLower = [0]*12
         teamMultiplyerLower = [-1]*6
-        moveStatusLower = [0]*4
+        moveStatusLower = [-1]*4
         currentWeatherLower = [0]
         opponentDynamaxTurnLower = [-1]
         opponentCanDynamaxLower = [0]
@@ -335,7 +364,7 @@ async def main():
     # Training the model
     dqn.fit(train_env, nb_steps=20000)
 
-    # restartAndTrainMaxDamage(dqn, 30000,train_env)
+    restartAndTrainMaxDamage(dqn, 50000,train_env)
     restartAndTrainHeuristic(dqn, 30000, train_env)
     # restartAndTrainMaxDamage(dqn, 10000,train_env)
 
