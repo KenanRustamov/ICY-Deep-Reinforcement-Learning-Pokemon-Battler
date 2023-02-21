@@ -34,96 +34,99 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
     def embed_battle(self, battle: AbstractBattle) -> ObservationType:
         # -1 indicates that the move does not have a base power
         # or is not available
-        moves_base_power = -np.ones(4)
-        moves_dmg_multiplier = np.ones(4)
-        can_dynamax = np.ones(1)
-        team_type = np.zeros(12)
-        opponent_team_type = np.zeros(12)
-        team_multiplyer = -np.ones(6)
-        dynamax_turn = np.ones(1)
-        moves_status_effects = np.zeros(4)
-        current_weather = np.zeros(1)
-        opponent_dynamax_turn = np.ones(1)
-        opponent_can_dynamax = np.ones(1)
-        opponent_side_conditions = np.zeros(20)
-        team_health = np.zeros(6)
-        opponent_team_health = np.zeros(6)
-        active_fields = np.zeros(12)
-        active_pokemon_side_conditions = np.zeros(20)
-        active_opponent_status = np.zeros(1)
-        active_pokemon_status = np.zeros(1)
-        active_pokemon_stats = -np.ones(6)
+        activePokemon = battle.active_pokemon
+        opponentActivePokemon = battle.opponent_active_pokemon
 
-        can_dynamax[0] = 1 if battle.can_dynamax else 0
-        dynamax_turn[0] = battle.dynamax_turns_left/3 if battle.dynamax_turns_left != None else -1
-        opponent_dynamax_turn[0] = battle.opponent_dynamax_turns_left/3 if battle.opponent_dynamax_turns_left != None else -1
-        current_weather[0] = 0 if len(battle.weather) == 0 else list(battle.weather.items())[0][0].value/8
-        opponent_can_dynamax[0] = 1 if battle._opponent_can_dynamax else 0
-        active_opponent_status[0] = battle.opponent_active_pokemon.status.value/6 if battle.opponent_active_pokemon.status else 0
-        active_pokemon_status[0] = battle.active_pokemon.status.value/6 if battle.active_pokemon.status else 0
+        activePokemonMovesBasePower = -np.ones(4)
+        activePokemonMovesDmgMultiplier = np.ones(4)
+        canDynamax = np.ones(1)
+        teamTypes = np.zeros(12)
+        opponentTeamTypes = np.zeros(12)
+        teamDmgMultiplyer = -np.ones(6)
+        dynamaxTurn = np.ones(1)
+        activePokemonMovesStatusEffects = np.zeros(4)
+        currentWeather = np.zeros(1)
+        opponentDyanamaxTurn = np.ones(1)
+        opponentCanDynamax = np.ones(1)
+        opponentSideConditions = np.zeros(20)
+        teamHealth = np.zeros(6)
+        opponentTeamHealth = np.zeros(6)
+        activeFields = np.zeros(12)
+        activePokemonSideConditions = np.zeros(20)
+        activeOpponentPokemonStatus = np.zeros(1)
+        activePokemonStatus = np.zeros(1)
+        activePokemonStats = -np.ones(6)
 
-        active_pokemon_stats[0] = battle.active_pokemon.stats['hp']/500 if 'hp' in battle.active_pokemon.stats and battle.active_pokemon.stats['hp'] else -1
-        active_pokemon_stats[1] = battle.active_pokemon.stats['atk']/500 if 'atk' in battle.active_pokemon.stats and battle.active_pokemon.stats['atk'] else -1
-        active_pokemon_stats[2] = battle.active_pokemon.stats['def']/500 if 'def' in battle.active_pokemon.stats and battle.active_pokemon.stats['def'] else -1
-        active_pokemon_stats[3] = battle.active_pokemon.stats['spa']/500 if 'spa' in battle.active_pokemon.stats and battle.active_pokemon.stats['spa'] else -1
-        active_pokemon_stats[4] = battle.active_pokemon.stats['spd']/500 if 'spd' in battle.active_pokemon.stats and battle.active_pokemon.stats['spd'] else -1
-        active_pokemon_stats[5] = battle.active_pokemon.stats['spe']/500 if 'spe' in battle.active_pokemon.stats and battle.active_pokemon.stats['spe'] else -1
+        canDynamax[0] = 1 if battle.can_dynamax else 0
+        dynamaxTurn[0] = battle.dynamax_turns_left/3 if battle.dynamax_turns_left != None else -1
+        opponentDyanamaxTurn[0] = battle.opponent_dynamax_turns_left/3 if battle.opponent_dynamax_turns_left != None else -1
+        currentWeather[0] = 0 if len(battle.weather) == 0 else list(battle.weather.items())[0][0].value/8
+        opponentCanDynamax[0] = 1 if battle.opponent_can_dynamax else 0
+        activeOpponentPokemonStatus[0] = opponentActivePokemon.status.value/6 if opponentActivePokemon.status else 0
+        activePokemonStatus[0] = activePokemon.status.value/6 if activePokemon.status else 0
 
-        # for effect, val in battle.opponent_active_pokemon.effects().items():
+        activePokemonStats[0] = activePokemon.stats['hp'] /500 if 'hp' in  activePokemon.stats and activePokemon.stats['hp'] else -1
+        activePokemonStats[1] = activePokemon.stats['atk']/500 if 'atk' in activePokemon.stats and activePokemon.stats['atk'] else -1
+        activePokemonStats[2] = activePokemon.stats['def']/500 if 'def' in activePokemon.stats and activePokemon.stats['def'] else -1
+        activePokemonStats[3] = activePokemon.stats['spa']/500 if 'spa' in activePokemon.stats and activePokemon.stats['spa'] else -1
+        activePokemonStats[4] = activePokemon.stats['spd']/500 if 'spd' in activePokemon.stats and activePokemon.stats['spd'] else -1
+        activePokemonStats[5] = activePokemon.stats['spe']/500 if 'spe' in activePokemon.stats and activePokemon.stats['spe'] else -1
+
+        # for effect, val in opponentActivePokemon.effects().items():
             # print(effect)
 
         for field,turn in battle.fields.items():
-            active_fields[field.value - 1] = 1
+            activeFields[field.value - 1] = 1
 
         for sideCondition,val in battle.opponent_side_conditions.items():
-            opponent_side_conditions[sideCondition.value - 1] = 1
+            opponentSideConditions[sideCondition.value - 1] = 1
         
         for sideCondition,val in battle.side_conditions.items():
-            active_pokemon_side_conditions[sideCondition.value - 1] = 1
+            activePokemonSideConditions[sideCondition.value - 1] = 1
 
         for i,pokemon in enumerate(battle.available_switches):
             firstTypeMultiplyer = pokemon.type_1.damage_multiplier(
-                    battle.opponent_active_pokemon.type_1,
-                    battle.opponent_active_pokemon.type_2,)
-            team_multiplyer[i] = firstTypeMultiplyer
+                    opponentActivePokemon.type_1,
+                    opponentActivePokemon.type_2,)
+            teamDmgMultiplyer[i] = firstTypeMultiplyer
 
             if pokemon.type_2 != None:
                 secondTypeMultiplyer = pokemon.type_2.damage_multiplier(
-                        battle.opponent_active_pokemon.type_1,
-                        battle.opponent_active_pokemon.type_2,)
-                team_multiplyer[i] *= secondTypeMultiplyer
-            team_multiplyer[i] /= 4
+                        opponentActivePokemon.type_1,
+                        opponentActivePokemon.type_2,)
+                teamDmgMultiplyer[i] *= secondTypeMultiplyer
+            teamDmgMultiplyer[i] /= 4
 
         for i,pokemon in enumerate(battle.team.values()):
             i = i*2
             if pokemon.fainted:
-                team_type[i] = 0
-                team_type[i + 1] = 0
+                teamTypes[i] = 0
+                teamTypes[i + 1] = 0
             else:
-                team_type[i] = pokemon.type_1.value/19 if pokemon.type_1 != None else 0
-                team_type[i + 1] =  pokemon.type_2.value/19 if pokemon.type_2 != None else 0
-                team_health[i//2] = pokemon.current_hp/800 if pokemon.current_hp else 0 #divide by maximum possible HP
+                teamTypes[i] = pokemon.type_1.value/19 if pokemon.type_1 != None else 0
+                teamTypes[i + 1] =  pokemon.type_2.value/19 if pokemon.type_2 != None else 0
+                teamHealth[i//2] = pokemon.current_hp/800 if pokemon.current_hp else 0 #divide by maximum possible HP
 
 
         for i, pokemon in enumerate(battle.opponent_team.values()):
             i = i*2
             if pokemon.fainted:
-                team_type[i] = 0
-                team_type[i + 1] = 0
+                teamTypes[i] = 0
+                teamTypes[i + 1] = 0
             else:
-                opponent_team_type[i] = pokemon.type_1.value/19 if pokemon.type_1 != None else 0
-                opponent_team_type[i + 1] =  pokemon.type_2.value/19 if pokemon.type_2 != None else 0
-                opponent_team_health[i//2] = pokemon.current_hp/800 if pokemon.current_hp else 0#divide by maximum possible HP
+                opponentTeamTypes[i] = pokemon.type_1.value/19 if pokemon.type_1 != None else 0
+                opponentTeamTypes[i + 1] =  pokemon.type_2.value/19 if pokemon.type_2 != None else 0
+                opponentTeamHealth[i//2] = pokemon.current_hp/800 if pokemon.current_hp else 0#divide by maximum possible HP
 
         for i, move in enumerate(battle.available_moves):
-            moves_status_effects[i] = move.status.value/7 if move.status != None else 0
-            moves_base_power[i] = (
+            activePokemonMovesStatusEffects[i] = move.status.value/7 if move.status != None else 0
+            activePokemonMovesBasePower[i] = (
                 move.base_power / 300
             )  # Simple rescaling to facilitate learning
             if move.type:
-                moves_dmg_multiplier[i] = move.type.damage_multiplier(
-                    battle.opponent_active_pokemon.type_1,
-                    battle.opponent_active_pokemon.type_2,) / 4
+                activePokemonMovesDmgMultiplier[i] = move.type.damage_multiplier(
+                    opponentActivePokemon.type_1,
+                    opponentActivePokemon.type_2,) / 4
 
         # We count how many pokemons have fainted in each team
         fainted_mon_team = len([mon for mon in battle.team.values() if mon.fainted]) / 6
@@ -132,26 +135,26 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         # Final vector with 12 components
         final_vector = np.concatenate(
             [
-                moves_base_power,
-                moves_dmg_multiplier,
+                activePokemonMovesBasePower,
+                activePokemonMovesDmgMultiplier,
                 [fainted_mon_team, fainted_mon_opponent],
-                can_dynamax,
-                dynamax_turn,
-                team_type,
-                opponent_team_type,
-                team_multiplyer,
-                moves_status_effects,
-                current_weather,
-                opponent_dynamax_turn,
-                opponent_can_dynamax,
-                opponent_side_conditions,
-                team_health,
-                opponent_team_health,
-                active_fields,
-                active_pokemon_side_conditions,
-                active_opponent_status,
-                active_pokemon_status,
-                active_pokemon_stats
+                canDynamax,
+                dynamaxTurn,
+                teamTypes,
+                opponentTeamTypes,
+                teamDmgMultiplyer,
+                activePokemonMovesStatusEffects,
+                currentWeather,
+                opponentDyanamaxTurn,
+                opponentCanDynamax,
+                opponentSideConditions,
+                teamHealth,
+                opponentTeamHealth,
+                activeFields,
+                activePokemonSideConditions,
+                activeOpponentPokemonStatus,
+                activePokemonStatus,
+                activePokemonStats
             ]
         )
         return np.float32(final_vector)
