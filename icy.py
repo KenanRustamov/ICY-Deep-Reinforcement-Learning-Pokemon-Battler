@@ -52,6 +52,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         active_pokemon_side_conditions = np.zeros(20)
         active_opponent_status = np.zeros(1)
         active_pokemon_status = np.zeros(1)
+        active_pokemon_stats = -np.ones(6)
 
         can_dynamax[0] = 1 if battle.can_dynamax else 0
         dynamax_turn[0] = battle.dynamax_turns_left/3 if battle.dynamax_turns_left != None else -1
@@ -60,6 +61,13 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         opponent_can_dynamax[0] = 1 if battle._opponent_can_dynamax else 0
         active_opponent_status[0] = battle.opponent_active_pokemon.status.value/6 if battle.opponent_active_pokemon.status else 0
         active_pokemon_status[0] = battle.active_pokemon.status.value/6 if battle.active_pokemon.status else 0
+
+        active_pokemon_stats[0] = battle.active_pokemon.stats['hp']/500 if 'hp' in battle.active_pokemon.stats and battle.active_pokemon.stats['hp'] else -1
+        active_pokemon_stats[1] = battle.active_pokemon.stats['atk']/500 if 'atk' in battle.active_pokemon.stats and battle.active_pokemon.stats['atk'] else -1
+        active_pokemon_stats[2] = battle.active_pokemon.stats['def']/500 if 'def' in battle.active_pokemon.stats and battle.active_pokemon.stats['def'] else -1
+        active_pokemon_stats[3] = battle.active_pokemon.stats['spa']/500 if 'spa' in battle.active_pokemon.stats and battle.active_pokemon.stats['spa'] else -1
+        active_pokemon_stats[4] = battle.active_pokemon.stats['spd']/500 if 'spd' in battle.active_pokemon.stats and battle.active_pokemon.stats['spd'] else -1
+        active_pokemon_stats[5] = battle.active_pokemon.stats['spe']/500 if 'spe' in battle.active_pokemon.stats and battle.active_pokemon.stats['spe'] else -1
 
         # for effect, val in battle.opponent_active_pokemon.effects().items():
             # print(effect)
@@ -142,7 +150,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
                 active_fields,
                 active_pokemon_side_conditions,
                 active_opponent_status,
-                active_pokemon_status
+                active_pokemon_status,
+                active_pokemon_stats
             ]
         )
         return np.float32(final_vector)
@@ -169,6 +178,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         activePokemonSideConditionsLower = [0]*20
         activeOpponentStatusLower = [0]
         activePokemonStatusLower = [0]
+        activePokemonStatsLower = [-1]*6
 
         low += moveBasePowerLower
         low += moveDamageMultiplyerLower
@@ -190,7 +200,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         low += activePokemonSideConditionsLower
         low += activeOpponentStatusLower
         low += activePokemonStatusLower
-        
+        low += activePokemonStatsLower
 
         high = []
         moveBasePowerUpper = [1]*4
@@ -213,6 +223,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         activePokemonSideConditionsUpper = [1]*20
         activeOpponentStatusUpper = [1]
         activePokemonStatusUpper = [1]
+        activePokemonStatsUpper = [1]*6
         
         high += moveBasePowerUpper
         high += moveDamageMultiplyerUpper
@@ -234,6 +245,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         high += activePokemonSideConditionsUpper
         high += activeOpponentStatusUpper
         high += activePokemonStatusUpper
+        high += activePokemonStatsUpper
 
         return Box(
             np.array(low, dtype=np.float32),
@@ -318,10 +330,10 @@ async def main():
     dqn.compile(Adam(learning_rate=0.00025), metrics=["mae"])
 
     # Training the model
-    dqn.fit(train_env, nb_steps=10000)
+    dqn.fit(train_env, nb_steps=20000)
 
-    restartAndTrainMaxDamage(dqn, 30000,train_env)
-    # restartAndTrainHeuristic(dqn, 60000, train_env)
+    # restartAndTrainMaxDamage(dqn, 30000,train_env)
+    restartAndTrainHeuristic(dqn, 30000, train_env)
     # restartAndTrainMaxDamage(dqn, 10000,train_env)
 
     train_env.close()
