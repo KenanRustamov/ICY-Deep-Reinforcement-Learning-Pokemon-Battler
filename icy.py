@@ -244,7 +244,7 @@ def buildModelLayers(model,inputShape, outputLen):
     model.add(Dense(inputShape[1], activation="elu", input_shape=inputShape))
     model.add(Normalization())
     model.add(Flatten())
-    model.add(Dense(32, activation="elu"))
+    model.add(Dense((inputShape[1] + outputLen)//2, activation="elu"))
     model.add(Normalization())
     model.add(Dense(outputLen, activation="linear"))
 
@@ -290,11 +290,7 @@ async def main():
 
     # Create model
     model = Sequential()
-    model.add(Dense(input_shape[1], activation="elu", input_shape=input_shape))
-    model.add(Normalization())
-    model.add(Flatten())
-    model.add(Dense((input_shape[1] + n_action)//2, activation="elu"))
-    model.add(Dense(n_action, activation="linear"))
+    buildModelLayers(model, input_shape, n_action)
 
     # Defining the DQN
     memory = SequentialMemory(limit=10000, window_length=1)
@@ -325,7 +321,7 @@ async def main():
     dqn.fit(train_env, nb_steps=10000)
 
     restartAndTrainMaxDamage(dqn, 30000,train_env)
-    # restartAndTrainHeuristic(dqn, 20000, train_env)
+    # restartAndTrainHeuristic(dqn, 60000, train_env)
     # restartAndTrainMaxDamage(dqn, 10000,train_env)
 
     train_env.close()
