@@ -11,6 +11,7 @@ from tensorflow.keras import Input
 from tensorflow.keras.layers import Dense, Flatten, Normalization
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
+# from matplotlib import pyplot as plt
 
 from poke_env.environment.abstract_battle import AbstractBattle
 from poke_env.player import (
@@ -377,21 +378,29 @@ async def main():
     dqn.compile(Adam(learning_rate=0.00025), metrics=["mae"])
 
     # Training the model
-    dqn.fit(train_env, nb_steps=20000)
+    dqn.fit(train_env, nb_steps=10000)
+    # plt.plot(history.history['mae'])
+    # plt.title('model mae')
+    # plt.ylabel('mae')
+    # plt.xlabel('epoch')
+    # plt.legend(['train', 'val'], loc='upper left')
+    # plt.show(block=True)
+    # plt.show()
 
-    restartAndTrainMaxDamage(dqn, 30000,train_env, True)
-    restartAndTrainHeuristic(dqn, 30000, train_env, True)
+
+    restartAndTrainMaxDamage(dqn, 100000,train_env, True)
+    # restartAndTrainHeuristic(dqn, 30000, train_env, True)
     # restartAndTrainMaxDamage(dqn, 10000,train_env)
 
     train_env.close()
 
     # Evaluating the model
-    print("Results against heuristic player:")
-    dqn.test(eval_env, nb_episodes=100, verbose=False, visualize=False)
-    print(
-        f"DQN Evaluation: {eval_env.n_won_battles} victories out of {eval_env.n_finished_battles} episodes"
-    )
-    eval_env.reset_env(restart=False)
+    # print("Results against heuristic player:")
+    # dqn.test(eval_env, nb_episodes=100, verbose=False, visualize=False)
+    # print(
+    #     f"DQN Evaluation: {eval_env.n_won_battles} victories out of {eval_env.n_finished_battles} episodes"
+    # )
+    # eval_env.reset_env(restart=False)
 
     # print("Results against random player:")
     # dqn.test(eval_env, nb_episodes=100, verbose=False, visualize=False)
