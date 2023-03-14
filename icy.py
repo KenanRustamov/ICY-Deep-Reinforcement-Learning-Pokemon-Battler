@@ -300,6 +300,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
             np.array(high, dtype=np.float32),
             dtype=np.float32,
         )
+    
 def buildModelLayers(model,inputShape, outputLen):
     model.add(Dense(inputShape[1], activation="elu", input_shape=inputShape))
     model.add(Normalization())
@@ -308,18 +309,58 @@ def buildModelLayers(model,inputShape, outputLen):
     model.add(Normalization())
     model.add(Dense(outputLen, activation="linear"))
 
-def restartAndTrainRandom(dqn, steps, trainingEnv, restart):
-    if restart : trainingEnv.reset_env(restart=True, opponent=RandomPlayer(battle_format="gen8randombattle"))
+def trainAgainstAgent(dqn, steps, trainingEnv, agent, restart = False):
+    if restart : trainingEnv.reset_env(restart=True, opponent=agent)
     dqn.fit(trainingEnv, nb_steps=steps)
 
-def restartAndTrainMaxDamage(dqn, steps, trainingEnv, restart):
-    if restart : trainingEnv.reset_env(restart=True, opponent=MaxBasePowerPlayer(battle_format="gen8randombattle"))
-    dqn.fit(trainingEnv, nb_steps=steps)
+def evalAgainstAgent(dqn,eval_env,agent, agentName, restart = False):
+    # Evaluating the model
+    if restart : eval_env.reset_env(restart=True, opponent=agent)
+    print("Results against" + agentName + "player:")
+    dqn.test(eval_env, nb_episodes=50, verbose=False, visualize=False)
+    print(
+        f"DQN Evaluation: {eval_env.n_won_battles} victories out of {eval_env.n_finished_battles} episodes"
+    )
+    print()
 
-def restartAndTrainHeuristic(dqn, steps, trainingEnv, restart):
-    if restart : trainingEnv.reset_env(restart=True, opponent=SimpleHeuristicsPlayer(battle_format="gen8randombattle"))
-    dqn.fit(trainingEnv, nb_steps=steps)
+def evalWithUtilMethod(dqn, eval_env):
+    print("Evalutation with Util Method starting ------------------------------------")
+    eval_env.reset_env(restart=False)
+    # Evaluate the player with included util method
+    n_challenges = 250
+    placement_battles = 40
+    eval_task = background_evaluate_player(
+        eval_env.agent, n_challenges, placement_battles
+    )
+    dqn.test(eval_env, nb_episodes=n_challenges, verbose=False, visualize=False)
+    print("Evaluation with included method:", eval_task.result())
+    print()
 
+def crossEval(dqn, eval_env):
+    print("Cross Evaluating against all agents starting ------------------------------------")
+    # Cross evaluate the player with included util method
+    eval_env.reset_env(restart = False)
+    n_challenges = 50
+    players = [
+        eval_env.agent,
+        RandomPlayer(battle_format="gen8randombattle"),
+        MaxBasePowerPlayer(battle_format="gen8randombattle"),
+        SimpleHeuristicsPlayer(battle_format="gen8randombattle"),
+    ]
+    cross_eval_task = background_cross_evaluate(players, n_challenges)
+    dqn.test(
+        eval_env,
+        nb_episodes=n_challenges * (len(players) - 1),
+        verbose=False,
+        visualize=False,
+    )
+    cross_evaluation = cross_eval_task.result()
+    table = [["-"] + [p.username for p in players]]
+    for p_1, results in cross_evaluation.items():
+        table.append([p_1] + [cross_evaluation[p_1][p_2] for p_2 in results])
+    print("Cross evaluation of DQN with baselines:")
+    print(tabulate(table))
+    print()
 
 async def main():
     # First test the environment to ensure the class is consistent
@@ -333,13 +374,13 @@ async def main():
 
     # Create one environment for training and one for evaluation
     opponent = RandomPlayer(battle_format="gen8randombattle")
-    second_opponent = MaxBasePowerPlayer(battle_format="gen8randombattle")
-    third_opponent = SimpleHeuristicsPlayer(battle_format="gen8randombattle")
+    maxAgent = MaxBasePowerPlayer(battle_format="gen8randombattle")
+    heuristicsAgent = SimpleHeuristicsPlayer(battle_format="gen8randombattle")
     train_env = SimpleRLPlayer(battle_format="gen8randombattle", opponent=opponent, start_challenging=True)
     train_env = wrap_for_old_gym_api(train_env)
 
     eval_env = SimpleRLPlayer(
-        battle_format="gen8randombattle", opponent=third_opponent, start_challenging=True
+        battle_format="gen8randombattle", opponent=SimpleHeuristicsPlayer(battle_format="gen8randombattle"), start_challenging=True
     )
     eval_env = wrap_for_old_gym_api(eval_env)
 
@@ -377,78 +418,15 @@ async def main():
     )
     dqn.compile(Adam(learning_rate=0.00025), metrics=["mae"])
 
-    # Training the model
-    dqn.fit(train_env, nb_steps=10000)
-    # plt.plot(history.history['mae'])
-    # plt.title('model mae')
-    # plt.ylabel('mae')
-    # plt.xlabel('epoch')
-    # plt.legend(['train', 'val'], loc='upper left')
-    # plt.show(block=True)
-    # plt.show()
-
-
-    restartAndTrainMaxDamage(dqn, 100000,train_env, True)
-    # restartAndTrainHeuristic(dqn, 30000, train_env, True)
-    # restartAndTrainMaxDamage(dqn, 10000,train_env)
-
+    trainAgainstAgent(dqn, 1000, train_env, RandomPlayer(battle_format="gen8randombattle"))
+    trainAgainstAgent(dqn, 1000,train_env, MaxBasePowerPlayer(battle_format="gen8randombattle"), True)
+    trainAgainstAgent(dqn, 1000, train_env, SimpleHeuristicsPlayer(battle_format="gen8randombattle"), True)
     train_env.close()
 
-    # Evaluating the model
-    # print("Results against heuristic player:")
-    # dqn.test(eval_env, nb_episodes=100, verbose=False, visualize=False)
-    # print(
-    #     f"DQN Evaluation: {eval_env.n_won_battles} victories out of {eval_env.n_finished_battles} episodes"
-    # )
-    # eval_env.reset_env(restart=False)
-
-    # print("Results against random player:")
-    # dqn.test(eval_env, nb_episodes=100, verbose=False, visualize=False)
-    # print(
-    #     f"DQN Evaluation: {eval_env.n_won_battles} victories out of {eval_env.n_finished_battles} episodes"
-    # )
-    # eval_env.reset_env(restart=True, opponent=second_opponent)
-
-    # print("Results against max base power player:")
-    # dqn.test(eval_env, nb_episodes=100, verbose=False, visualize=False)
-    # print(
-    #     f"DQN Evaluation: {eval_env.n_won_battles} victories out of {eval_env.n_finished_battles} episodes"
-    # )
-    # eval_env.reset_env(restart=False)
-
-    # Evaluate the player with included util method
-    n_challenges = 250
-    placement_battles = 40
-    eval_task = background_evaluate_player(
-        eval_env.agent, n_challenges, placement_battles
-    )
-    dqn.test(eval_env, nb_episodes=n_challenges, verbose=False, visualize=False)
-    print("Evaluation with included method:", eval_task.result())
-    eval_env.reset_env(restart=False)
-
-
-    # Cross evaluate the player with included util method
-    n_challenges = 50
-    players = [
-        eval_env.agent,
-        RandomPlayer(battle_format="gen8randombattle"),
-        MaxBasePowerPlayer(battle_format="gen8randombattle"),
-        SimpleHeuristicsPlayer(battle_format="gen8randombattle"),
-    ]
-    cross_eval_task = background_cross_evaluate(players, n_challenges)
-    dqn.test(
-        eval_env,
-        nb_episodes=n_challenges * (len(players) - 1),
-        verbose=False,
-        visualize=False,
-    )
-    cross_evaluation = cross_eval_task.result()
-    table = [["-"] + [p.username for p in players]]
-    for p_1, results in cross_evaluation.items():
-        table.append([p_1] + [cross_evaluation[p_1][p_2] for p_2 in results])
-    print("Cross evaluation of DQN with baselines:")
-    print(tabulate(table))
+    evalWithUtilMethod(dqn,eval_env)
+    crossEval(dqn, eval_env)
     eval_env.close()
+
     dqn.save_weights("Saved Models/currentModel")
 
 
