@@ -313,43 +313,43 @@ def trainAgainstAgent(dqn, steps, trainingEnv, agent, restart = False):
     if restart : trainingEnv.reset_env(restart=True, opponent=agent)
     dqn.fit(trainingEnv, nb_steps=steps)
 
-def evalAgainstAgent(dqn,eval_env,agent, agentName, restart = False):
+def evalAgainstAgent(dqn,evalEnv,agent, agentName, restart = False):
     # Evaluating the model
-    if restart : eval_env.reset_env(restart=True, opponent=agent)
+    if restart : evalEnv.reset_env(restart=True, opponent=agent)
     print("Results against" + agentName + "player:")
-    dqn.test(eval_env, nb_episodes=50, verbose=False, visualize=False)
+    dqn.test(evalEnv, nb_episodes=50, verbose=False, visualize=False)
     print(
-        f"DQN Evaluation: {eval_env.n_won_battles} victories out of {eval_env.n_finished_battles} episodes"
+        f"DQN Evaluation: {evalEnv.n_won_battles} victories out of {evalEnv.n_finished_battles} episodes"
     )
     print()
 
-def evalWithUtilMethod(dqn, eval_env):
+def evalWithUtilMethod(dqn, evalEnv):
     print("Evalutation with Util Method starting ------------------------------------")
-    eval_env.reset_env(restart=False)
+    evalEnv.reset_env(restart=False)
     # Evaluate the player with included util method
     n_challenges = 250
     placement_battles = 40
     eval_task = background_evaluate_player(
-        eval_env.agent, n_challenges, placement_battles
+        evalEnv.agent, n_challenges, placement_battles
     )
-    dqn.test(eval_env, nb_episodes=n_challenges, verbose=False, visualize=False)
+    dqn.test(evalEnv, nb_episodes=n_challenges, verbose=False, visualize=False)
     print("Evaluation with included method:", eval_task.result())
     print()
 
-def crossEval(dqn, eval_env):
+def crossEval(dqn, evalEnv):
     print("Cross Evaluating against all agents starting ------------------------------------")
     # Cross evaluate the player with included util method
-    eval_env.reset_env(restart = False)
+    evalEnv.reset_env(restart = False)
     n_challenges = 50
     players = [
-        eval_env.agent,
+        evalEnv.agent,
         RandomPlayer(battle_format="gen8randombattle"),
         MaxBasePowerPlayer(battle_format="gen8randombattle"),
         SimpleHeuristicsPlayer(battle_format="gen8randombattle"),
     ]
     cross_eval_task = background_cross_evaluate(players, n_challenges)
     dqn.test(
-        eval_env,
+        evalEnv,
         nb_episodes=n_challenges * (len(players) - 1),
         verbose=False,
         visualize=False,
@@ -365,28 +365,25 @@ def crossEval(dqn, eval_env):
 async def main():
     # First test the environment to ensure the class is consistent
     # with the OpenAI API
-    opponent = RandomPlayer(battle_format="gen8randombattle")
-    test_env = SimpleRLPlayer(battle_format="gen8randombattle", start_challenging=True, opponent=opponent)
+    randomAgent = RandomPlayer(battle_format="gen8randombattle")
+    test_env = SimpleRLPlayer(battle_format="gen8randombattle", start_challenging=True, opponent=randomAgent)
     # test_env = wrap_for_old_gym_api(test_env)
     check_env(test_env)
     test_env.close()
     print("Test Environment Closed")
 
     # Create one environment for training and one for evaluation
-    opponent = RandomPlayer(battle_format="gen8randombattle")
-    maxAgent = MaxBasePowerPlayer(battle_format="gen8randombattle")
-    heuristicsAgent = SimpleHeuristicsPlayer(battle_format="gen8randombattle")
-    train_env = SimpleRLPlayer(battle_format="gen8randombattle", opponent=opponent, start_challenging=True)
-    train_env = wrap_for_old_gym_api(train_env)
+    trainEnv = SimpleRLPlayer(battle_format="gen8randombattle", opponent=RandomPlayer(battle_format="gen8randombattle"), start_challenging=True)
+    trainEnv = wrap_for_old_gym_api(trainEnv)
 
-    eval_env = SimpleRLPlayer(
+    evalEnv = SimpleRLPlayer(
         battle_format="gen8randombattle", opponent=SimpleHeuristicsPlayer(battle_format="gen8randombattle"), start_challenging=True
     )
-    eval_env = wrap_for_old_gym_api(eval_env)
+    evalEnv = wrap_for_old_gym_api(evalEnv)
 
     # Compute dimensions
-    n_action = train_env.action_space.n
-    input_shape = (1,) + train_env.observation_space.shape
+    n_action = trainEnv.action_space.n
+    input_shape = (1,) + trainEnv.observation_space.shape
     print(input_shape)
 
     # Create model
@@ -418,14 +415,14 @@ async def main():
     )
     dqn.compile(Adam(learning_rate=0.00025), metrics=["mae"])
 
-    trainAgainstAgent(dqn, 1000, train_env, RandomPlayer(battle_format="gen8randombattle"))
-    trainAgainstAgent(dqn, 1000,train_env, MaxBasePowerPlayer(battle_format="gen8randombattle"), True)
-    trainAgainstAgent(dqn, 1000, train_env, SimpleHeuristicsPlayer(battle_format="gen8randombattle"), True)
-    train_env.close()
+    trainAgainstAgent(dqn, 1000, trainEnv, RandomPlayer(battle_format="gen8randombattle"))
+    trainAgainstAgent(dqn, 1000,trainEnv, MaxBasePowerPlayer(battle_format="gen8randombattle"), True)
+    trainAgainstAgent(dqn, 1000, trainEnv, SimpleHeuristicsPlayer(battle_format="gen8randombattle"), True)
+    trainEnv.close()
 
-    evalWithUtilMethod(dqn,eval_env)
-    crossEval(dqn, eval_env)
-    eval_env.close()
+    evalWithUtilMethod(dqn,evalEnv)
+    crossEval(dqn, evalEnv)
+    evalEnv.close()
 
     dqn.save_weights("Saved Models/currentModel")
 
