@@ -397,16 +397,17 @@ def evalAllDqns(evalEnv):
         crossEval(dqn, evalEnv)
         print()
 
-async def main():
+def checkCurrentEnvironment():
     # First test the environment to ensure the class is consistent
     # with the OpenAI API
     randomAgent = RandomPlayer(battle_format="gen8randombattle")
     test_env = SimpleRLPlayer(battle_format="gen8randombattle", start_challenging=True, opponent=randomAgent)
-    # test_env = wrap_for_old_gym_api(test_env)
     check_env(test_env)
     test_env.close()
     print("Test Environment Closed")
 
+async def main():
+    checkCurrentEnvironment()
     # Create one environment for training and one for evaluation
     trainEnv = SimpleRLPlayer(battle_format="gen8randombattle", opponent=RandomPlayer(battle_format="gen8randombattle"), start_challenging=True)
     trainEnv = wrap_for_old_gym_api(trainEnv)
@@ -449,7 +450,7 @@ async def main():
         
     evalEnv.close()
 
-    dqn.save_weights("Saved Models/currentModel")
+    # dqn.save_weights("Saved Models/currentModel")
 
 
 if __name__ == "__main__":
