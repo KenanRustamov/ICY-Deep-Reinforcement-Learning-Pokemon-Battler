@@ -314,6 +314,7 @@ def trainAgainstAgent(dqn, steps, trainingEnv, agent, restart = False):
     dqn.fit(trainingEnv, nb_steps=steps)
 
 def evalAgainstAgent(dqn,evalEnv,agent, agentName, restart = False):
+    print()
     # Evaluating the model
     if restart : evalEnv.reset_env(restart=True, opponent=agent)
     print("Results against" + agentName + "player:")
@@ -324,6 +325,7 @@ def evalAgainstAgent(dqn,evalEnv,agent, agentName, restart = False):
     print()
 
 def evalWithUtilMethod(dqn, evalEnv):
+    print()
     print("Evalutation with Util Method starting ------------------------------------")
     evalEnv.reset_env(restart=False)
     # Evaluate the player with included util method
@@ -337,6 +339,7 @@ def evalWithUtilMethod(dqn, evalEnv):
     print()
 
 def crossEval(dqn, evalEnv):
+    print()
     print("Cross Evaluating against all agents starting ------------------------------------")
     # Cross evaluate the player with included util method
     evalEnv.reset_env(restart = False)
@@ -362,6 +365,38 @@ def crossEval(dqn, evalEnv):
     print(tabulate(table))
     print()
 
+def trainingTuner(model, n_action, policy, memory, trainEnv, dqnDict, randomAgent, maxAgent, heuristicsAgent):
+    for i in range(1, 2):
+        for j in range(0, 2):
+            for k in range(0, 2):
+                dqn = DQNAgent(
+                    model=model,
+                    nb_actions=n_action,
+                    policy=policy,
+                    memory=memory,
+                    nb_steps_warmup=1000,
+                    gamma=0.5,
+                    target_model_update=1,
+                    delta_clip=0.01,
+                    enable_double_dqn=True,
+                )
+                dqn.compile(Adam(learning_rate=0.00025), metrics=["mae"])
+
+                trainAgainstAgent(dqn, i*10000, trainEnv, randomAgent)
+                if j: trainAgainstAgent(dqn, j*10000,trainEnv, maxAgent, True)
+                if k: trainAgainstAgent(dqn, k*10000, trainEnv, heuristicsAgent, True)
+
+                dqnDict[(i*100,j*100,k*100)] = dqn
+                if (not (i == 3 and j == 3 and k == 3)): trainEnv.reset_env(restart = True, opponent = RandomPlayer(battle_format="gen8randombattle"))
+    
+def evalAllDqns(evalEnv):
+    for trainingTimes,dqn in dqnDict.items():
+        print()
+        print("Random Training Steps: ", trainingTimes[0], "Max Damage Agent Training Steps: ", trainingTimes[1], "Heuristics Agent Training Steps: ", trainingTimes[2], "------")
+        evalWithUtilMethod(dqn,evalEnv)
+        crossEval(dqn, evalEnv)
+        print()
+
 async def main():
     # First test the environment to ensure the class is consistent
     # with the OpenAI API
@@ -377,7 +412,7 @@ async def main():
     trainEnv = wrap_for_old_gym_api(trainEnv)
 
     evalEnv = SimpleRLPlayer(
-        battle_format="gen8randombattle", opponent=SimpleHeuristicsPlayer(battle_format="gen8randombattle"), start_challenging=True
+        battle_format="gen8randombattle", opponent=RandomPlayer(battle_format="gen8randombattle"), start_challenging=True
     )
     evalEnv = wrap_for_old_gym_api(evalEnv)
 
@@ -402,26 +437,16 @@ async def main():
         nb_steps=10000,
     )
 
-    dqn = DQNAgent(
-        model=model,
-        nb_actions=n_action,
-        policy=policy,
-        memory=memory,
-        nb_steps_warmup=1000,
-        gamma=0.5,
-        target_model_update=1,
-        delta_clip=0.01,
-        enable_double_dqn=True,
-    )
-    dqn.compile(Adam(learning_rate=0.00025), metrics=["mae"])
+    dqnDict = {}
+    randomAgent = RandomPlayer(battle_format="gen8randombattle")
+    maxAgent = MaxBasePowerPlayer(battle_format="gen8randombattle")
+    heuristicsAgent = SimpleHeuristicsPlayer(battle_format="gen8randombattle")
 
-    trainAgainstAgent(dqn, 1000, trainEnv, RandomPlayer(battle_format="gen8randombattle"))
-    trainAgainstAgent(dqn, 1000,trainEnv, MaxBasePowerPlayer(battle_format="gen8randombattle"), True)
-    trainAgainstAgent(dqn, 1000, trainEnv, SimpleHeuristicsPlayer(battle_format="gen8randombattle"), True)
+    trainingTuner(model,n_action,policy,memory,trainEnv,dqnDict, randomAgent,maxAgent,heuristicsAgent)
     trainEnv.close()
 
-    evalWithUtilMethod(dqn,evalEnv)
-    crossEval(dqn, evalEnv)
+    evalAllDqns(evalEnv)
+        
     evalEnv.close()
 
     dqn.save_weights("Saved Models/currentModel")
