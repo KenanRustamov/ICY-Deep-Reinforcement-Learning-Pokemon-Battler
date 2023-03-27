@@ -57,8 +57,6 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         activeOpponentPokemonStatus = np.zeros(1)
         activePokemonStatus = np.zeros(1)
         activePokemonStats = -np.ones(6)
-        activePokemonEffects = -np.ones(164)
-        opponentActivePokemonEffects = -np.ones(164)
 
         canDynamax[0] = 1 if battle.can_dynamax else 0
         dynamaxTurn[0] = battle.dynamax_turns_left/3 if battle.dynamax_turns_left != None else -1
@@ -74,12 +72,6 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         activePokemonStats[3] = activePokemon.stats['spa']/500 if 'spa' in activePokemon.stats and activePokemon.stats['spa'] else -1
         activePokemonStats[4] = activePokemon.stats['spd']/500 if 'spd' in activePokemon.stats and activePokemon.stats['spd'] else -1
         activePokemonStats[5] = activePokemon.stats['spe']/500 if 'spe' in activePokemon.stats and activePokemon.stats['spe'] else -1
-        
-        for effect, val in activePokemon.effects.items():
-            activePokemonEffects[effect.value - 1] = val/10
-        
-        for effect, val in opponentActivePokemon.effects.items():
-            opponentActivePokemonEffects[effect.value - 1] = val / 10
 
         for field,turn in battle.fields.items():
             activeFields[field.value - 1] = 1
@@ -117,12 +109,12 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         for i, pokemon in enumerate(battle.opponent_team.values()):
             i = i*2
             if pokemon.fainted:
-                teamTypes[i] = 0
-                teamTypes[i + 1] = 0
+                opponentTeamTypes[i] = -1
+                opponentTeamTypes[i + 1] = -1
             else:
                 opponentTeamTypes[i] = pokemon.type_1.value/19 if pokemon.type_1 != None else 0
                 opponentTeamTypes[i + 1] =  pokemon.type_2.value/19 if pokemon.type_2 != None else 0
-                opponentTeamHealth[i//2] = pokemon.current_hp/800 if pokemon.current_hp else 0#divide by maximum possible HP
+                opponentTeamHealth[i//2] = pokemon.current_hp/800 if pokemon.current_hp else 0 #divide by maximum possible HP
 
         for i, move in enumerate(battle.available_moves):
             activePokemonMovesStatusEffects[i] = move.status.value/7 if move.status != None else 0
@@ -166,7 +158,6 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         # print("faintedOpponentTeamPokemon: ",faintedOpponentTeamPokemon)
         # print()
         # print()
-
 
         # Final vector with 12 components
         final_vector = np.concatenate(
@@ -218,8 +209,6 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         activeOpponentStatusLower = [0]
         activePokemonStatusLower = [0]
         activePokemonStatsLower = [-1]*6
-        activePokemonEffectsLower = [-1]*164
-        opponentActivePokemonEffectsLower = [-1]*164
 
         low += moveBasePowerLower
         low += moveDamageMultiplyerLower
@@ -242,8 +231,6 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         low += activeOpponentStatusLower
         low += activePokemonStatusLower
         low += activePokemonStatsLower
-        # low += activePokemonEffectsLower
-        # low += opponentActivePokemonEffectsLower
         
 
         high = []
@@ -268,8 +255,6 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         activeOpponentStatusUpper = [1]
         activePokemonStatusUpper = [1]
         activePokemonStatsUpper = [1]*6
-        activePokemonEffectsUpper = [1]*164
-        opponentActivePokemonEffectsUpper = [1]*164
         
         high += moveBasePowerUpper
         high += moveDamageMultiplyerUpper
@@ -292,8 +277,6 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         high += activeOpponentStatusUpper
         high += activePokemonStatusUpper
         high += activePokemonStatsUpper
-        # high += activePokemonEffectsUpper
-        # high += opponentActivePokemonEffectsUpper
 
         return Box(
             np.array(low, dtype=np.float32),
@@ -338,9 +321,9 @@ def evalWithUtilMethod(dqn, evalEnv):
     print("Evaluation with included method:", eval_task.result())
     print()
 
-def crossEval(dqn, evalEnv):
+def crossEval(dqn, evalEnv,currentFile):
     print()
-    print("Cross Evaluating against all agents starting ------------------------------------")
+    currentFile.write("Cross Evaluating against all agents starting ------------------------------------")
     # Cross evaluate the player with included util method
     evalEnv.reset_env(restart = False)
     n_challenges = 50
@@ -361,14 +344,15 @@ def crossEval(dqn, evalEnv):
     table = [["-"] + [p.username for p in players]]
     for p_1, results in cross_evaluation.items():
         table.append([p_1] + [cross_evaluation[p_1][p_2] for p_2 in results])
-    print("Cross evaluation of DQN with baselines:")
-    print(tabulate(table))
+    currentFile.write("Cross evaluation of DQN with baselines:")
+    currentFile.write(tabulate(table))
     print()
 
-def trainingTuner(model, n_action, policy, memory, trainEnv, dqnDict, randomAgent, maxAgent, heuristicsAgent):
-    for i in range(1, 2):
-        for j in range(0, 2):
-            for k in range(0, 2):
+def trainingTuner(model, n_action, policy, memory, trainEnv, dqnDict, randomAgent, maxAgent, heuristicsAgent, maxLen):
+    steps = 10000
+    for i in range(1, maxLen + 1):
+        for j in range(0, maxLen + 1):
+            for k in range(0, maxLen + 1):
                 dqn = DQNAgent(
                     model=model,
                     nb_actions=n_action,
@@ -382,29 +366,36 @@ def trainingTuner(model, n_action, policy, memory, trainEnv, dqnDict, randomAgen
                 )
                 dqn.compile(Adam(learning_rate=0.00025), metrics=["mae"])
 
-                trainAgainstAgent(dqn, i*10000, trainEnv, randomAgent)
-                if j: trainAgainstAgent(dqn, j*10000,trainEnv, maxAgent, True)
-                if k: trainAgainstAgent(dqn, k*10000, trainEnv, heuristicsAgent, True)
+                trainAgainstAgent(dqn, i*steps, trainEnv, randomAgent)
+                if j: trainAgainstAgent(dqn, j*steps,trainEnv, maxAgent, True)
+                if k: trainAgainstAgent(dqn, k*steps, trainEnv, heuristicsAgent, True)
 
-                dqnDict[(i*100,j*100,k*100)] = dqn
-                if (not (i == 3 and j == 3 and k == 3)): trainEnv.reset_env(restart = True, opponent = RandomPlayer(battle_format="gen8randombattle"))
+                dqnDict[(i*steps,j*steps,k*steps)] = dqn
+                if (not (i == maxLen and j == maxLen and k == maxLen)): trainEnv.reset_env(restart = True, opponent = RandomPlayer(battle_format="gen8randombattle"))
     
-def evalAllDqns(evalEnv):
+def evalAllDqns(evalEnv,dqnDict, currentFile):
     for trainingTimes,dqn in dqnDict.items():
         print()
-        print("Random Training Steps: ", trainingTimes[0], "Max Damage Agent Training Steps: ", trainingTimes[1], "Heuristics Agent Training Steps: ", trainingTimes[2], "------")
-        evalWithUtilMethod(dqn,evalEnv)
-        crossEval(dqn, evalEnv)
+        currentFile.write(f'Random Training Steps: " {trainingTimes[0]} " Max Damage Agent Training Steps: " {trainingTimes[1]} " Heuristics Agent Training Steps: " {trainingTimes[2]} " ------')
+        crossEval(dqn, evalEnv, currentFile)
         print()
 
 def checkCurrentEnvironment():
     # First test the environment to ensure the class is consistent
     # with the OpenAI API
-    randomAgent = RandomPlayer(battle_format="gen8randombattle")
-    test_env = SimpleRLPlayer(battle_format="gen8randombattle", start_challenging=True, opponent=randomAgent)
-    check_env(test_env)
-    test_env.close()
-    print("Test Environment Closed")
+    #10 tries
+    for i in range(10):
+        try:
+            randomAgent = RandomPlayer(battle_format="gen8randombattle")
+            test_env = SimpleRLPlayer(battle_format="gen8randombattle", start_challenging=True, opponent=randomAgent)
+            check_env(test_env)
+            test_env.close()
+            print("Test Environment Closed")
+            return
+        except:
+            continue
+    
+
 
 async def main():
     checkCurrentEnvironment()
@@ -443,10 +434,16 @@ async def main():
     maxAgent = MaxBasePowerPlayer(battle_format="gen8randombattle")
     heuristicsAgent = SimpleHeuristicsPlayer(battle_format="gen8randombattle")
 
-    trainingTuner(model,n_action,policy,memory,trainEnv,dqnDict, randomAgent,maxAgent,heuristicsAgent)
+    trainingTuner(model,n_action,policy,memory,trainEnv,dqnDict, randomAgent,maxAgent,heuristicsAgent, 3)
     trainEnv.close()
 
-    evalAllDqns(evalEnv)
+    print("Attempting to run Evals and save to file --------")
+    try:
+        currentFile = open("evalutationResults.txt", "w")
+        evalAllDqns(evalEnv,dqnDict,currentFile)
+    finally:
+        currentFile.close()
+    
         
     evalEnv.close()
 
