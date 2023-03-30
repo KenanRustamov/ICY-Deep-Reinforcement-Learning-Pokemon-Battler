@@ -29,7 +29,7 @@ from poke_env.player import (
 class SimpleRLPlayer(Gen8EnvSinglePlayer):
     def calc_reward(self, last_battle, current_battle) -> float:
         return self.reward_computing_helper(
-            current_battle,fainted_value=2.0, hp_value=1.0, victory_value=30.0
+            current_battle,fainted_value=3.0, hp_value=1.0, victory_value=30.0, status_value= .1
         )
 
     def embed_battle(self, battle: AbstractBattle) -> ObservationType:
@@ -57,6 +57,12 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         activeOpponentPokemonStatus = np.zeros(1)
         activePokemonStatus = np.zeros(1)
         activePokemonStats = -np.ones(6)
+
+        player2dVector = np.full((21, 20), -2)
+        opponent2dVector = np.full((21, 20), -2)
+        external2dVector = np.full((21, 20), -2)
+
+        threeDimensionalVector = np.full((3, 21, 20), -2)
 
         canDynamax[0] = 1 if battle.can_dynamax else 0
         dynamaxTurn[0] = battle.dynamax_turns_left/3 if battle.dynamax_turns_left != None else -1
@@ -98,8 +104,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         for i,pokemon in enumerate(battle.team.values()):
             i = i*2
             if pokemon.fainted:
-                teamTypes[i] = 0
-                teamTypes[i + 1] = 0
+                teamTypes[i] = -1
+                teamTypes[i + 1] = -1
             else:
                 teamTypes[i] = pokemon.type_1.value/19 if pokemon.type_1 != None else 0
                 teamTypes[i + 1] =  pokemon.type_2.value/19 if pokemon.type_2 != None else 0
@@ -133,61 +139,81 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         #put -1 for inputs if the pokemon is already fainted
         #for moves, actually show the status effect that is used not just a 1
 
-        # print()
-        # print()
-        # print("activePokemonMovesBasePower: ",activePokemonMovesBasePower)
-        # print("activePokemonMovesDmgMultiplier:",activePokemonMovesDmgMultiplier)
-        # print("canDynamax:",canDynamax)
-        # print("teamTypes:",teamTypes)
-        # print("opponentTeamTypes:",opponentTeamTypes)
-        # print("teamDmgMultiplyer :",teamDmgMultiplyer)
-        # print("dynamaxTurn:",dynamaxTurn)
-        # print("activePokemonMovesStatusEffects :",activePokemonMovesStatusEffects)
-        # print("currentWeather :",currentWeather)
-        # print("opponentDyanamaxTurn:",opponentDyanamaxTurn)
-        # print("opponentCanDynamax:",opponentCanDynamax)
-        # print("opponentSideConditions:",opponentSideConditions)
-        # print("teamHealth :",teamHealth)
-        # print("opponentTeamHealth :",opponentTeamHealth)
-        # print("activeFields:",activeFields)
-        # print("activePokemonSideConditions:",activePokemonSideConditions)
-        # print("activeOpponentPokemonStatus :",activeOpponentPokemonStatus)
-        # print("activePokemonStatus :",activePokemonStatus)
-        # print("activePokemonStats :",activePokemonStats)
-        # print("faintedTeamPokemon: ",faintedTeamPokemon)
-        # print("faintedOpponentTeamPokemon: ",faintedOpponentTeamPokemon)
-        # print()
-        # print()
+        # Fill the first row with activePokemonMovesBasePower
+        player2dVector[0, :len(activePokemonMovesBasePower)] = activePokemonMovesBasePower
 
-        # Final vector with 12 components
-        final_vector = np.concatenate(
-            [
-                activePokemonMovesBasePower,
-                activePokemonMovesDmgMultiplier,
-                [faintedTeamPokemon, faintedOpponentTeamPokemon],
-                canDynamax,
-                dynamaxTurn,
-                teamTypes,
-                opponentTeamTypes,
-                teamDmgMultiplyer,
-                activePokemonMovesStatusEffects,
-                currentWeather,
-                opponentDyanamaxTurn,
-                opponentCanDynamax,
-                opponentSideConditions,
-                teamHealth,
-                opponentTeamHealth,
-                activeFields,
-                activePokemonSideConditions,
-                activeOpponentPokemonStatus,
-                activePokemonStatus,
-                activePokemonStats
-            ]
-        )
-        return np.float32(final_vector)
+        # Fill the second row with activePokemonMovesDmgMultiplier
+        player2dVector[1, :len(activePokemonMovesDmgMultiplier)] = activePokemonMovesDmgMultiplier
+
+        # Fill the third row with faintedTeamPokemon
+        player2dVector[2, :1] = faintedTeamPokemon
+
+         # Fill the fifth row with canDynamax
+        player2dVector[3, :len(canDynamax)] = canDynamax
+
+        # Fill the sixth row with dynamaxTurn
+        player2dVector[4, :len(dynamaxTurn)] = dynamaxTurn
+
+        # Fill the seventh row with teamTypes
+        player2dVector[5, :len(teamTypes)] = teamTypes
+
+        # Fill the ninth row with teamDmgMultiplyer
+        player2dVector[6, :len(teamDmgMultiplyer)] = teamDmgMultiplyer
+
+        # Fill the tenth row with activePokemonMovesStatusEffects
+        player2dVector[7, :len(activePokemonMovesStatusEffects)] = activePokemonMovesStatusEffects
+
+        # Fill the fifteenth row with teamHealth
+        player2dVector[8, :len(teamHealth)] = teamHealth
+
+        player2dVector[9, :len(activePokemonStatus)] = activePokemonStatus
+
+        # Fill the twentieth row with activePokemonStats
+        player2dVector[10, :len(activePokemonStats)] = activePokemonStats
+
+        # Fill the eighteenth row with activePokemonSideConditions
+        player2dVector[11, :len(activePokemonSideConditions)] = activePokemonSideConditions
+
+        # Fill the fourth row with faintedOpponentTeamPokemon
+        opponent2dVector[0, :1] = faintedOpponentTeamPokemon
+       
+        # Fill the eighth row with opponentTeamTypes
+        opponent2dVector[1, :len(opponentTeamTypes)] = opponentTeamTypes
+
+        # Fill the twelfth row with opponentDyanamaxTurn
+        opponent2dVector[2, :len(opponentDyanamaxTurn)] = opponentDyanamaxTurn
+
+        # Fill the thirteenth row with opponentCanDynamax
+        opponent2dVector[3, :len(opponentCanDynamax)] = opponentCanDynamax
+
+        # Fill the fourteenth row with opponentSideConditions
+        opponent2dVector[4, :len(opponentSideConditions)] = opponentSideConditions
+
+        # Fill the sixteenth row with opponentTeamHealth
+        opponent2dVector[5, :len(opponentTeamHealth)] = opponentTeamHealth
+
+        
+        # Fill the nineteenth row with activeOpponentPokemonStatus and activePokemonStatus
+        opponent2dVector[6, :len(activeOpponentPokemonStatus)] = activeOpponentPokemonStatus
+
+        # Fill the seventeenth row with activeFields
+        external2dVector[0, :len(activeFields)] = activeFields
+
+        # Fill the eleventh row with currentWeather
+        external2dVector[1, :len(currentWeather)] = currentWeather
+
+        threeDimensionalVector[0] = player2dVector
+        threeDimensionalVector[1] = opponent2dVector
+        threeDimensionalVector[2] = external2dVector
+
+        return np.float32(threeDimensionalVector)
 
     def describe_embedding(self) -> Space:
         low = []
+        newLow = np.full((3, 21, 20), -2)
+        playerNewLow = np.full((21, 20), -2)
+        opponentNewLow = np.full((21, 20), -2)
+        externalNewLow = np.full((21, 20), -2)
         moveBasePowerLower = [-1]*4
         moveDamageMultiplyerLower = [-1]*4
         faintedTeamLower = [0]
@@ -210,30 +236,37 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         activePokemonStatusLower = [0]
         activePokemonStatsLower = [-1]*6
 
-        low += moveBasePowerLower
-        low += moveDamageMultiplyerLower
-        low += faintedTeamLower
-        low += faintedOpponentTeamLower
-        low += canDynamaxLower
-        low += dynamaxTurnLower
-        low += teamTypeLower
-        low += opponentTeamTypeLower
-        low += teamMultiplyerLower
-        low += moveStatusLower
-        low += currentWeatherLower
-        low += opponentDynamaxTurnLower
-        low += opponentCanDynamaxLower
-        low += opponentSideConditionsLower
-        low += teamHealthLower
-        low += opponentTeamHealthLower
-        low += activeFieldsLower
-        low += activePokemonSideConditionsLower
-        low += activeOpponentStatusLower
-        low += activePokemonStatusLower
-        low += activePokemonStatsLower
-        
+        playerNewLow[0, :len(moveBasePowerLower)] = moveBasePowerLower
+        playerNewLow[1, :len(moveDamageMultiplyerLower)] = moveDamageMultiplyerLower
+        playerNewLow[2, :len(faintedTeamLower)] = faintedTeamLower
+        playerNewLow[3, :len(canDynamaxLower)] = canDynamaxLower
+        playerNewLow[4, :len(dynamaxTurnLower)] = dynamaxTurnLower
+        playerNewLow[5, :len(teamTypeLower)] = teamTypeLower
+        playerNewLow[6, :len(teamMultiplyerLower)] = teamMultiplyerLower
+        playerNewLow[7, :len(moveStatusLower)] = moveStatusLower
+        playerNewLow[8, :len(teamHealthLower)] = teamHealthLower
+        playerNewLow[9, :len(activePokemonSideConditionsLower)] = activePokemonSideConditionsLower
+        playerNewLow[10, :len(activePokemonStatusLower)] = activePokemonStatusLower
+        playerNewLow[11, :len(activePokemonStatsLower)] = activePokemonStatsLower
+
+        opponentNewLow[0, :len(faintedOpponentTeamLower)] = faintedOpponentTeamLower
+        opponentNewLow[1, :len(opponentTeamTypeLower)] = opponentTeamTypeLower
+        opponentNewLow[2, :len(opponentDynamaxTurnLower)] = opponentDynamaxTurnLower
+        opponentNewLow[3, :len(opponentCanDynamaxLower)] = opponentCanDynamaxLower
+        opponentNewLow[4, :len(opponentSideConditionsLower)] = opponentSideConditionsLower
+        opponentNewLow[5, :len(opponentTeamHealthLower)] = opponentTeamHealthLower
+        opponentNewLow[6, :len(activeOpponentStatusLower)] = activeOpponentStatusLower
+
+        externalNewLow[0, :len(activeFieldsLower)] = activeFieldsLower
+        externalNewLow[1, :len(currentWeatherLower)] = currentWeatherLower
+
+
 
         high = []
+        newHigh = np.full((3, 21, 20), -2)
+        playerNewHigh = np.full((21, 20), -2)
+        opponentNewHigh = np.full((21, 20), -2)
+        externalNewHigh = np.full((21, 20), -2)
         moveBasePowerUpper = [1]*4
         moveDamageMultiplyerUpper = [1]*4
         faintedTeamUpper = [1]
@@ -255,40 +288,53 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         activeOpponentStatusUpper = [1]
         activePokemonStatusUpper = [1]
         activePokemonStatsUpper = [1]*6
-        
-        high += moveBasePowerUpper
-        high += moveDamageMultiplyerUpper
-        high += faintedTeamUpper
-        high += faintedOpponentTeamUpper
-        high += canDynamaxUpper
-        high += dynamaxTurnUpper
-        high += teamTypeUpper
-        high += opponentTeamTypeUpper
-        high += teamMultiplyerUpper
-        high += moveStatusUpper
-        high += currentWeatherUpper
-        high += opponentDynamaxTurnUpper
-        high += opponentCanDynamaxUpper
-        high += opponentSideConditionsUpper
-        high += teamHealthUpper
-        high += opponentTeamHealthUpper
-        high += activeFieldsUpper
-        high += activePokemonSideConditionsUpper
-        high += activeOpponentStatusUpper
-        high += activePokemonStatusUpper
-        high += activePokemonStatsUpper
+
+        playerNewHigh[0, :len(moveBasePowerUpper)] = moveBasePowerUpper
+        playerNewHigh[1, :len(moveDamageMultiplyerUpper)] = moveDamageMultiplyerUpper
+        playerNewHigh[2, :len(faintedTeamUpper)] = faintedTeamUpper
+        playerNewHigh[3, :len(canDynamaxUpper)] = canDynamaxUpper
+        playerNewHigh[4, :len(dynamaxTurnUpper)] = dynamaxTurnUpper
+        playerNewHigh[5, :len(teamTypeUpper)] = teamTypeUpper
+        playerNewHigh[6, :len(teamMultiplyerUpper)] = teamMultiplyerUpper
+        playerNewHigh[7, :len(moveStatusUpper)] = moveStatusUpper
+        playerNewHigh[8, :len(teamHealthUpper)] = teamHealthUpper
+        playerNewHigh[9, :len(activePokemonSideConditionsUpper)] = activePokemonSideConditionsUpper
+        playerNewHigh[10, :len(activePokemonStatusUpper)] = activePokemonStatusUpper
+        playerNewHigh[11, :len(activePokemonStatsUpper)] = activePokemonStatsUpper
+
+        opponentNewHigh[0, :len(faintedOpponentTeamUpper)] = faintedOpponentTeamUpper
+        opponentNewHigh[1, :len(opponentTeamTypeUpper)] = opponentTeamTypeUpper
+        opponentNewHigh[2, :len(opponentDynamaxTurnUpper)] = opponentDynamaxTurnUpper
+        opponentNewHigh[3, :len(opponentCanDynamaxUpper)] = opponentCanDynamaxUpper
+        opponentNewHigh[4, :len(opponentSideConditionsUpper)] = opponentSideConditionsUpper
+        opponentNewHigh[5, :len(opponentTeamHealthUpper)] = opponentTeamHealthUpper
+        opponentNewHigh[6, :len(activeOpponentStatusUpper)] = activeOpponentStatusUpper
+
+        externalNewHigh[0, :len(activeFieldsUpper)] = activeFieldsUpper
+        externalNewHigh[1, :len(currentWeatherUpper)] = currentWeatherUpper
+
+
+        newLow[0] = playerNewLow
+        newLow[1] = opponentNewLow
+        newLow[2] = externalNewLow
+
+        newHigh[0] = playerNewHigh
+        newHigh[1] = opponentNewHigh
+        newHigh[2] = externalNewHigh
 
         return Box(
-            np.array(low, dtype=np.float32),
-            np.array(high, dtype=np.float32),
+            np.array(newLow, dtype=np.float32),
+            np.array(newHigh, dtype=np.float32),
             dtype=np.float32,
         )
     
 def buildModelLayers(model,inputShape, outputLen):
-    model.add(Dense(inputShape[1], activation="elu", input_shape=inputShape))
+    model.add(Dense(inputShape[1], activation="swish", input_shape=inputShape))
     model.add(Normalization())
     model.add(Flatten())
-    model.add(Dense((inputShape[1] + outputLen)//2, activation="elu"))
+    model.add(Dense((inputShape[1] + outputLen)*2, activation="swish"))
+    model.add(Normalization())
+    model.add(Dense((inputShape[1] + outputLen)//2, activation="swish"))
     model.add(Normalization())
     model.add(Dense(outputLen, activation="linear"))
 
@@ -434,8 +480,25 @@ async def main():
     maxAgent = MaxBasePowerPlayer(battle_format="gen8randombattle")
     heuristicsAgent = SimpleHeuristicsPlayer(battle_format="gen8randombattle")
 
-    trainingTuner(model,n_action,policy,memory,trainEnv,dqnDict, randomAgent,maxAgent,heuristicsAgent, 3)
+    # trainingTuner(model,n_action,policy,memory,trainEnv,dqnDict, randomAgent,maxAgent,heuristicsAgent, 3)
+    dqn = DQNAgent(
+                    model=model,
+                    nb_actions=n_action,
+                    policy=policy,
+                    memory=memory,
+                    nb_steps_warmup=1000,
+                    gamma=0.5,
+                    target_model_update=1,
+                    delta_clip=0.01,
+                    enable_double_dqn=True,
+                )
+    dqn.compile(Adam(learning_rate=0.00025), metrics=["mae"])
+
+    trainAgainstAgent(dqn, 30000, trainEnv, randomAgent)
+    trainAgainstAgent(dqn, 30000, trainEnv, maxAgent, True)
+    # trainAgainstAgent(dqn, 30000, trainEnv, heuristicsAgent, True)
     trainEnv.close()
+    dqnDict[(30000,30000,30000)] = dqn
 
     print("Attempting to run Evals and save to file --------")
     try:
