@@ -7,10 +7,11 @@ from rl.agents.dqn import DQNAgent
 from rl.memory import SequentialMemory
 from rl.policy import LinearAnnealedPolicy, EpsGreedyQPolicy
 from tabulate import tabulate
-from tensorflow.keras import Input
+from tensorflow.keras import Input,regularizers
 from tensorflow.keras.layers import Dense, Flatten, Normalization
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
+import os
 # from matplotlib import pyplot as plt
 
 from poke_env.environment.abstract_battle import AbstractBattle
@@ -440,6 +441,17 @@ def checkCurrentEnvironment():
             return
         except:
             continue
+
+def getNextNumber():
+    newFile = open("currentNumber.txt", "r")
+    currentString = newFile.read()
+    newFile.close()
+
+    nextNumber = str(int(currentString) + 1)
+    newFile = open("currentNumber.txt","w")
+    newFile.write(nextNumber)
+    newFile.close()
+    return nextNumber
     
 
 
@@ -494,15 +506,21 @@ async def main():
                 )
     dqn.compile(Adam(learning_rate=0.00025), metrics=["mae"])
 
-    trainAgainstAgent(dqn, 30000, trainEnv, randomAgent)
-    trainAgainstAgent(dqn, 30000, trainEnv, maxAgent, True)
+    trainAgainstAgent(dqn, 10000, trainEnv, randomAgent)
+    trainAgainstAgent(dqn, 10000, trainEnv, maxAgent, True)
     # trainAgainstAgent(dqn, 30000, trainEnv, heuristicsAgent, True)
     trainEnv.close()
     dqnDict[(30000,30000,30000)] = dqn
 
     print("Attempting to run Evals and save to file --------")
+    nextNum = getNextNumber() 
+
+    modelDir = "C:/Users/kenan/Documents/projects/New Icy/Saved Models/model"+ nextNum
+    os.mkdir(modelDir) 
+    print("Directory '% s' is built!" % modelDir) 
+
     try:
-        currentFile = open("evalutationResults.txt", "w")
+        currentFile = open("Saved Models/model" + nextNum + "/evalutationResults.txt", "w")
         evalAllDqns(evalEnv,dqnDict,currentFile)
     finally:
         currentFile.close()
@@ -510,7 +528,7 @@ async def main():
         
     evalEnv.close()
 
-    # dqn.save_weights("Saved Models/currentModel")
+    dqn.save_weights("Saved Models/model" + nextNum + "/savedModel")
 
 
 if __name__ == "__main__":
