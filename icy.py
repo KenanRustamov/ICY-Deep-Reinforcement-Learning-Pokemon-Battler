@@ -8,7 +8,7 @@ from rl.memory import SequentialMemory
 from rl.policy import LinearAnnealedPolicy, EpsGreedyQPolicy
 from tabulate import tabulate
 from tensorflow.keras import Input,regularizers
-from tensorflow.keras.layers import Dense, Flatten, Normalization
+from tensorflow.keras.layers import Dense, Flatten, Normalization, Dropout
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
 import os
@@ -167,13 +167,13 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         # Fill the fifteenth row with teamHealth
         player2dVector[8, :len(teamHealth)] = teamHealth
 
-        player2dVector[9, :len(activePokemonStatus)] = activePokemonStatus
+        # Fill the eighteenth row with activePokemonSideConditions
+        player2dVector[9, :len(activePokemonSideConditions)] = activePokemonSideConditions
+
+        player2dVector[10, :len(activePokemonStatus)] = activePokemonStatus
 
         # Fill the twentieth row with activePokemonStats
-        player2dVector[10, :len(activePokemonStats)] = activePokemonStats
-
-        # Fill the eighteenth row with activePokemonSideConditions
-        player2dVector[11, :len(activePokemonSideConditions)] = activePokemonSideConditions
+        player2dVector[11, :len(activePokemonStats)] = activePokemonStats
 
         # Fill the fourth row with faintedOpponentTeamPokemon
         opponent2dVector[0, :1] = faintedOpponentTeamPokemon
@@ -506,8 +506,8 @@ async def main():
                 )
     dqn.compile(Adam(learning_rate=0.00025), metrics=["mae"])
 
-    trainAgainstAgent(dqn, 10000, trainEnv, randomAgent)
-    trainAgainstAgent(dqn, 10000, trainEnv, maxAgent, True)
+    trainAgainstAgent(dqn, 30000, trainEnv, randomAgent)
+    trainAgainstAgent(dqn, 30000, trainEnv, maxAgent, True)
     # trainAgainstAgent(dqn, 30000, trainEnv, heuristicsAgent, True)
     trainEnv.close()
     dqnDict[(30000,30000,30000)] = dqn
