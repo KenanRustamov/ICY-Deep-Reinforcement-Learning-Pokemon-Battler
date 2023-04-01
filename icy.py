@@ -11,7 +11,9 @@ from tensorflow.keras import Input,regularizers
 from tensorflow.keras.layers import Dense, Flatten, Normalization, Dropout
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.regularizers import L1L2
 import os
+import hashlib
 # from matplotlib import pyplot as plt
 
 from poke_env.environment.abstract_battle import AbstractBattle
@@ -58,20 +60,37 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         activeOpponentPokemonStatus = np.zeros(1)
         activePokemonStatus = np.zeros(1)
         activePokemonStats = -np.ones(6)
+        activePokemonAbility = np.zeros(1)
+        activeOpponentPokemonAbility = np.zeros(1)
+        activePokemonStatusCounter = np.zeros(1)
+        activePokemonMovesAccuracy = -np.ones(4)
+        activePokemonMovesCritRatio = -np.ones(4)
+        activePokemonMovesCurrentPp = -np.ones(4)
+        activePokemonMovesExpectedHits = -np.ones(4)
+        activePokemonMovesForceSwitch = -np.ones(4)
+        activePokemonMovesHeals = -np.ones(4)
+        activePokemonMovesPriority = -np.ones(4)
+        activePokemonMovesRecoil = -np.ones(4)
+        activePokemonMovesSideConditions = -np.ones(4)
+        activePokemonMovesTerrain = -np.ones(4)
+        activePokemonMovesWeather = -np.ones(4)
 
-        player2dVector = np.full((21, 20), -2)
-        opponent2dVector = np.full((21, 20), -2)
-        external2dVector = np.full((21, 20), -2)
+        player2dVector = np.full((25, 20), -2)
+        opponent2dVector = np.full((25, 20), -2)
+        external2dVector = np.full((25, 20), -2)
 
-        threeDimensionalVector = np.full((3, 21, 20), -2)
+        threeDimensionalVector = np.full((3, 25, 20), -2)
 
         canDynamax[0] = 1 if battle.can_dynamax else 0
         dynamaxTurn[0] = battle.dynamax_turns_left/3 if battle.dynamax_turns_left != None else -1
         opponentDyanamaxTurn[0] = battle.opponent_dynamax_turns_left/3 if battle.opponent_dynamax_turns_left != None else -1
-        currentWeather[0] = 0 if len(battle.weather) == 0 else list(battle.weather.items())[0][0].value/8
+        currentWeather[0] = -1 if not battle.weather else list(battle.weather.items())[0][0].value/8
         opponentCanDynamax[0] = 1 if battle.opponent_can_dynamax else 0
         activeOpponentPokemonStatus[0] = opponentActivePokemon.status.value/6 if opponentActivePokemon.status else 0
         activePokemonStatus[0] = activePokemon.status.value/6 if activePokemon.status else 0
+        activePokemonAbility[0] = -1 if not activePokemon.ability else wordToNumber(activePokemon.ability)
+        activeOpponentPokemonAbility[0] = -1 if not opponentActivePokemon.ability else wordToNumber(opponentActivePokemon.ability)
+        activePokemonStatusCounter[0] = -1 if not activePokemon.status_counter else activePokemon.status_counter/100
 
         activePokemonStats[0] = activePokemon.stats['hp'] /500 if 'hp' in  activePokemon.stats and activePokemon.stats['hp'] else -1
         activePokemonStats[1] = activePokemon.stats['atk']/500 if 'atk' in activePokemon.stats and activePokemon.stats['atk'] else -1
@@ -128,7 +147,19 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
             activePokemonMovesBasePower[i] = (
                 move.base_power / 300
             )
-            # Simple rescaling to facilitate learning
+            activePokemonMovesAccuracy[i] = move.accuracy
+            activePokemonMovesCritRatio[i] = move.crit_ratio
+
+            activePokemonMovesCurrentPp[i] = -1 if not move.current_pp else move.current_pp
+            activePokemonMovesExpectedHits[i] = -1 if not move.expected_hits else move.expected_hits/5
+            activePokemonMovesForceSwitch[i] = 0 if not move.force_switch else 1
+            activePokemonMovesHeals[i] = -1 if not move.heal else move.heal
+            activePokemonMovesPriority[i] = move.priority
+            activePokemonMovesRecoil[i] = -1 if not move.recoil else move.recoil
+            activePokemonMovesSideConditions[i] = -1 if not move.side_condition else wordToNumber(move.side_condition)
+            activePokemonMovesTerrain[i] = -1 if not move.terrain else move.terrain.value
+            activePokemonMovesWeather[i] = -1 if not move.weather else move.weather.value
+
             if move.type and activePokemonMovesBasePower[i] > 0:
                 activePokemonMovesDmgMultiplier[i] = move.type.damage_multiplier(
                     opponentActivePokemon.type_1,
@@ -175,6 +206,32 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         # Fill the twentieth row with activePokemonStats
         player2dVector[11, :len(activePokemonStats)] = activePokemonStats
 
+        player2dVector[12, :len(activePokemonAbility)] = activePokemonAbility
+
+        player2dVector[13, :len(activePokemonStatusCounter)] = activePokemonStatusCounter
+        
+        player2dVector[14, :len(activePokemonMovesAccuracy )] = activePokemonMovesAccuracy
+
+        player2dVector[15, :len(activePokemonMovesCritRatio )] = activePokemonMovesCritRatio
+
+        player2dVector[16, :len(activePokemonMovesCurrentPp )] = activePokemonMovesCurrentPp
+
+        player2dVector[17, :len(activePokemonMovesExpectedHits )] = activePokemonMovesExpectedHits
+
+        player2dVector[18, :len(activePokemonMovesForceSwitch )] = activePokemonMovesForceSwitch
+
+        player2dVector[19, :len(activePokemonMovesHeals )] = activePokemonMovesHeals
+
+        player2dVector[20, :len(activePokemonMovesPriority )] = activePokemonMovesPriority
+
+        player2dVector[21, :len(activePokemonMovesRecoil )] = activePokemonMovesRecoil
+
+        player2dVector[22, :len(activePokemonMovesSideConditions )] = activePokemonMovesSideConditions
+
+        player2dVector[23, :len(activePokemonMovesTerrain )] = activePokemonMovesTerrain
+
+        player2dVector[24, :len(activePokemonMovesWeather )] = activePokemonMovesWeather
+
         # Fill the fourth row with faintedOpponentTeamPokemon
         opponent2dVector[0, :1] = faintedOpponentTeamPokemon
        
@@ -197,6 +254,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         # Fill the nineteenth row with activeOpponentPokemonStatus and activePokemonStatus
         opponent2dVector[6, :len(activeOpponentPokemonStatus)] = activeOpponentPokemonStatus
 
+        opponent2dVector[7, :len(activeOpponentPokemonAbility)] = activeOpponentPokemonAbility
+
         # Fill the seventeenth row with activeFields
         external2dVector[0, :len(activeFields)] = activeFields
 
@@ -210,11 +269,10 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         return np.float32(threeDimensionalVector)
 
     def describe_embedding(self) -> Space:
-        low = []
-        newLow = np.full((3, 21, 20), -2)
-        playerNewLow = np.full((21, 20), -2)
-        opponentNewLow = np.full((21, 20), -2)
-        externalNewLow = np.full((21, 20), -2)
+        newLow = np.full((3, 25, 20), -2)
+        playerNewLow = np.full((25, 20), -2)
+        opponentNewLow = np.full((25, 20), -2)
+        externalNewLow = np.full((25, 20), -2)
         moveBasePowerLower = [-1]*4
         moveDamageMultiplyerLower = [-1]*4
         faintedTeamLower = [0]
@@ -225,7 +283,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         opponentTeamTypeLower = [0]*12
         teamMultiplyerLower = [-1]*6
         moveStatusLower = [-1]*4
-        currentWeatherLower = [0]
+        currentWeatherLower = [-1]
         opponentDynamaxTurnLower = [-1]
         opponentCanDynamaxLower = [0]
         opponentSideConditionsLower = [0]*20
@@ -236,6 +294,20 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         activeOpponentStatusLower = [0]
         activePokemonStatusLower = [0]
         activePokemonStatsLower = [-1]*6
+        activePokemonAbilityLower = [-1]*1
+        activeOpponentPokemonAbilityLower = [-1]*1
+        activePokemonStatusCounterLower = [-1]*1
+        activePokemonMovesAccuracyLower = [-1]*1
+        activePokemonMovesCritRatioLower = [-1]*1
+        activePokemonMovesCurrentPpLower = [-1]*1
+        activePokemonMovesExpectedHitsLower = [-1]*1
+        activePokemonMovesForceSwitchLower = [0]*1
+        activePokemonMovesHealsLower = [-1]*1
+        activePokemonMovesPriorityLower = [-1]*1
+        activePokemonMovesRecoilLower = [-1]*1
+        activePokemonMovesSideConditionsLower = [-1]*1
+        activePokemonMovesTerrainLower = [-1]*1
+        activePokemonMovesWeatherLower = [-1]*1
 
         playerNewLow[0, :len(moveBasePowerLower)] = moveBasePowerLower
         playerNewLow[1, :len(moveDamageMultiplyerLower)] = moveDamageMultiplyerLower
@@ -249,6 +321,19 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         playerNewLow[9, :len(activePokemonSideConditionsLower)] = activePokemonSideConditionsLower
         playerNewLow[10, :len(activePokemonStatusLower)] = activePokemonStatusLower
         playerNewLow[11, :len(activePokemonStatsLower)] = activePokemonStatsLower
+        playerNewLow[12, :len(activePokemonAbilityLower)] = activePokemonAbilityLower
+        playerNewLow[13, :len(activePokemonStatusCounterLower)] = activePokemonStatusCounterLower
+        playerNewLow[14, :len(activePokemonMovesAccuracyLower)] = activePokemonMovesAccuracyLower
+        playerNewLow[15, :len(activePokemonMovesCritRatioLower)] = activePokemonMovesCritRatioLower
+        playerNewLow[16, :len(activePokemonMovesCurrentPpLower)] = activePokemonMovesCurrentPpLower
+        playerNewLow[17, :len(activePokemonMovesExpectedHitsLower)] = activePokemonMovesExpectedHitsLower
+        playerNewLow[18, :len(activePokemonMovesForceSwitchLower)] = activePokemonMovesForceSwitchLower
+        playerNewLow[19, :len(activePokemonMovesHealsLower)] = activePokemonMovesHealsLower
+        playerNewLow[20, :len(activePokemonMovesPriorityLower)] = activePokemonMovesPriorityLower
+        playerNewLow[21, :len(activePokemonMovesRecoilLower)] = activePokemonMovesRecoilLower
+        playerNewLow[22, :len(activePokemonMovesSideConditionsLower)] = activePokemonMovesSideConditionsLower
+        playerNewLow[23, :len(activePokemonMovesTerrainLower)] = activePokemonMovesTerrainLower
+        playerNewLow[24, :len(activePokemonMovesWeatherLower)] = activePokemonMovesWeatherLower
 
         opponentNewLow[0, :len(faintedOpponentTeamLower)] = faintedOpponentTeamLower
         opponentNewLow[1, :len(opponentTeamTypeLower)] = opponentTeamTypeLower
@@ -257,17 +342,16 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         opponentNewLow[4, :len(opponentSideConditionsLower)] = opponentSideConditionsLower
         opponentNewLow[5, :len(opponentTeamHealthLower)] = opponentTeamHealthLower
         opponentNewLow[6, :len(activeOpponentStatusLower)] = activeOpponentStatusLower
+        opponentNewLow[7, :len(activeOpponentPokemonAbilityLower)] = activeOpponentPokemonAbilityLower
 
         externalNewLow[0, :len(activeFieldsLower)] = activeFieldsLower
         externalNewLow[1, :len(currentWeatherLower)] = currentWeatherLower
 
 
-
-        high = []
-        newHigh = np.full((3, 21, 20), -2)
-        playerNewHigh = np.full((21, 20), -2)
-        opponentNewHigh = np.full((21, 20), -2)
-        externalNewHigh = np.full((21, 20), -2)
+        newHigh = np.full((3, 25, 20), -2)
+        playerNewHigh = np.full((25, 20), -2)
+        opponentNewHigh = np.full((25, 20), -2)
+        externalNewHigh = np.full((25, 20), -2)
         moveBasePowerUpper = [1]*4
         moveDamageMultiplyerUpper = [1]*4
         faintedTeamUpper = [1]
@@ -289,6 +373,20 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         activeOpponentStatusUpper = [1]
         activePokemonStatusUpper = [1]
         activePokemonStatsUpper = [1]*6
+        activePokemonAbilityUpper = [1]*1
+        activeOpponentPokemonAbilityUpper = [1]*1
+        activePokemonStatusCounterUpper = [1]*1
+        activePokemonMovesAccuracyUpper = [1]*1
+        activePokemonMovesCritRatioUpper = [1]*1
+        activePokemonMovesCurrentPpUpper = [1]*1
+        activePokemonMovesExpectedHitsUpper = [1]*1
+        activePokemonMovesForceSwitchUpper = [1]*1
+        activePokemonMovesHealsUpper = [1]*1
+        activePokemonMovesPriorityUpper = [1]*1
+        activePokemonMovesRecoilUpper = [1]*1
+        activePokemonMovesSideConditionsUpper = [1]*1
+        activePokemonMovesTerrainUpper = [1]*1
+        activePokemonMovesWeatherUpper = [1]*1
 
         playerNewHigh[0, :len(moveBasePowerUpper)] = moveBasePowerUpper
         playerNewHigh[1, :len(moveDamageMultiplyerUpper)] = moveDamageMultiplyerUpper
@@ -302,6 +400,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         playerNewHigh[9, :len(activePokemonSideConditionsUpper)] = activePokemonSideConditionsUpper
         playerNewHigh[10, :len(activePokemonStatusUpper)] = activePokemonStatusUpper
         playerNewHigh[11, :len(activePokemonStatsUpper)] = activePokemonStatsUpper
+        playerNewHigh[12, :len(activePokemonAbilityUpper)] = activePokemonAbilityUpper
+        playerNewHigh[13, :len(activePokemonStatusCounterUpper)] = activePokemonStatusCounterUpper
 
         opponentNewHigh[0, :len(faintedOpponentTeamUpper)] = faintedOpponentTeamUpper
         opponentNewHigh[1, :len(opponentTeamTypeUpper)] = opponentTeamTypeUpper
@@ -310,6 +410,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         opponentNewHigh[4, :len(opponentSideConditionsUpper)] = opponentSideConditionsUpper
         opponentNewHigh[5, :len(opponentTeamHealthUpper)] = opponentTeamHealthUpper
         opponentNewHigh[6, :len(activeOpponentStatusUpper)] = activeOpponentStatusUpper
+        opponentNewHigh[7, :len(activeOpponentPokemonAbilityUpper)] = activeOpponentPokemonAbilityUpper
 
         externalNewHigh[0, :len(activeFieldsUpper)] = activeFieldsUpper
         externalNewHigh[1, :len(currentWeatherUpper)] = currentWeatherUpper
@@ -328,15 +429,29 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
             np.array(newHigh, dtype=np.float32),
             dtype=np.float32,
         )
+def wordToNumber(word):
+    hash_object = hashlib.sha1(word.encode())
+    hex_dig = hash_object.hexdigest()
+    int_val = int(hex_dig, 16)
+    max_val = 2**160 - 1 # maximum value of SHA-1 hash
+    return float(int_val % 2**32) / 2**32
     
 def buildModelLayers(model,inputShape, outputLen):
     model.add(Dense(inputShape[1], activation="swish", input_shape=inputShape))
     model.add(Normalization())
     model.add(Flatten())
-    model.add(Dense((inputShape[1] + outputLen)*2, activation="swish"))
+    model.add(Dense((inputShape[2] + outputLen)*3, activation="swish", kernel_regularizer='l2'))
     model.add(Normalization())
-    model.add(Dense((inputShape[1] + outputLen)//2, activation="swish"))
+    model.add(Dropout(0.2))
+    model.add(Dense((inputShape[2] + outputLen)*2, activation="swish", kernel_regularizer='l2'))
     model.add(Normalization())
+    model.add(Dropout(0.2))
+    model.add(Dense((inputShape[2] + outputLen), activation="swish", kernel_regularizer='l2'))
+    model.add(Normalization())
+    model.add(Dropout(0.2))
+    model.add(Dense((inputShape[2] + outputLen)//2, activation="swish", kernel_regularizer='l2'))
+    model.add(Normalization())
+    model.add(Dropout(0.2))
     model.add(Dense(outputLen, activation="linear"))
 
 def trainAgainstAgent(dqn, steps, trainingEnv, agent, restart = False):
@@ -506,8 +621,8 @@ async def main():
                 )
     dqn.compile(Adam(learning_rate=0.00025), metrics=["mae"])
 
-    trainAgainstAgent(dqn, 30000, trainEnv, randomAgent)
-    trainAgainstAgent(dqn, 30000, trainEnv, maxAgent, True)
+    trainAgainstAgent(dqn, 80000, trainEnv, randomAgent)
+    # trainAgainstAgent(dqn, 40000, trainEnv, maxAgent, True)
     # trainAgainstAgent(dqn, 30000, trainEnv, heuristicsAgent, True)
     trainEnv.close()
     dqnDict[(30000,30000,30000)] = dqn
