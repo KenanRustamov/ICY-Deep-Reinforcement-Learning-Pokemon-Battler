@@ -8,7 +8,7 @@ from rl.memory import SequentialMemory
 from rl.policy import LinearAnnealedPolicy, EpsGreedyQPolicy
 from tabulate import tabulate
 from tensorflow.keras import Input,regularizers
-from tensorflow.keras.layers import Dense, Flatten, Normalization, Dropout
+from tensorflow.keras.layers import Dense, Flatten, Normalization, Dropout, InputLayer
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import L1L2
@@ -402,6 +402,17 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         playerNewHigh[11, :len(activePokemonStatsUpper)] = activePokemonStatsUpper
         playerNewHigh[12, :len(activePokemonAbilityUpper)] = activePokemonAbilityUpper
         playerNewHigh[13, :len(activePokemonStatusCounterUpper)] = activePokemonStatusCounterUpper
+        playerNewHigh[14, :len(activePokemonMovesAccuracyUpper)] = [1]*1
+        playerNewHigh[15, :len(activePokemonMovesCritRatioUpper)] = activePokemonMovesCritRatioUpper
+        playerNewHigh[16, :len(activePokemonMovesCurrentPpUpper)] = activePokemonMovesCurrentPpUpper
+        playerNewHigh[17, :len(activePokemonMovesExpectedHitsUpper)] = activePokemonMovesExpectedHitsUpper
+        playerNewHigh[18, :len(activePokemonMovesForceSwitchUpper)] = activePokemonMovesForceSwitchUpper
+        playerNewHigh[19, :len(activePokemonMovesHealsUpper)] = activePokemonMovesHealsUpper
+        playerNewHigh[20, :len(activePokemonMovesPriorityUpper)] = activePokemonMovesPriorityUpper
+        playerNewHigh[21, :len(activePokemonMovesRecoilUpper)] = activePokemonMovesRecoilUpper
+        playerNewHigh[22, :len(activePokemonMovesSideConditionsUpper)] = activePokemonMovesSideConditionsUpper
+        playerNewHigh[23, :len(activePokemonMovesTerrainUpper)] = activePokemonMovesTerrainUpper
+        playerNewHigh[24, :len(activePokemonMovesWeatherUpper)] = activePokemonMovesWeatherUpper
 
         opponentNewHigh[0, :len(faintedOpponentTeamUpper)] = faintedOpponentTeamUpper
         opponentNewHigh[1, :len(opponentTeamTypeUpper)] = opponentTeamTypeUpper
@@ -437,19 +448,19 @@ def wordToNumber(word):
     return float(int_val % 2**32) / 2**32
     
 def buildModelLayers(model,inputShape, outputLen):
-    model.add(Dense(inputShape[1], activation="swish", input_shape=inputShape))
+    model.add(Dense(inputShape[2], activation="swish", input_shape=inputShape))
     model.add(Normalization())
     model.add(Flatten())
-    model.add(Dense((inputShape[2] + outputLen)*3, activation="swish", kernel_regularizer='l2'))
+    model.add(Dense((inputShape[2] + outputLen)*3, activation="swish"))
     model.add(Normalization())
     model.add(Dropout(0.2))
-    model.add(Dense((inputShape[2] + outputLen)*2, activation="swish", kernel_regularizer='l2'))
+    model.add(Dense((inputShape[2] + outputLen)*2, activation="swish"))
     model.add(Normalization())
     model.add(Dropout(0.2))
-    model.add(Dense((inputShape[2] + outputLen), activation="swish", kernel_regularizer='l2'))
+    model.add(Dense((inputShape[2] + outputLen), activation="swish"))
     model.add(Normalization())
     model.add(Dropout(0.2))
-    model.add(Dense((inputShape[2] + outputLen)//2, activation="swish", kernel_regularizer='l2'))
+    model.add(Dense((inputShape[2] + outputLen)//2, activation="swish"))
     model.add(Normalization())
     model.add(Dropout(0.2))
     model.add(Dense(outputLen, activation="linear"))
@@ -621,7 +632,7 @@ async def main():
                 )
     dqn.compile(Adam(learning_rate=0.00025), metrics=["mae"])
 
-    trainAgainstAgent(dqn, 80000, trainEnv, randomAgent)
+    trainAgainstAgent(dqn, 100000, trainEnv, randomAgent)
     # trainAgainstAgent(dqn, 40000, trainEnv, maxAgent, True)
     # trainAgainstAgent(dqn, 30000, trainEnv, heuristicsAgent, True)
     trainEnv.close()
