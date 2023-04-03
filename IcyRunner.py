@@ -31,14 +31,14 @@ from poke_env.player import (
 )
     
 def buildModelLayers(model,inputShape, outputLen):
-    model.add(Dense(inputShape[1], activation="swish", input_shape = inputShape, use_bias=True))
+    model.add(Dense(inputShape[1], activation="swish", input_shape = inputShape))
     model.add(Normalization())
     model.add(Flatten())
-    model.add(Dropout(.2))
-    model.add(Dense((inputShape[1] + outputLen)//2, activation="swish", use_bias=True))
+    model.add(Dropout(.5))
+    model.add(Dense((inputShape[1] + outputLen)//2, activation="swish"))
     model.add(Normalization())
-    model.add(Dropout(.2))
-    model.add(Dense((inputShape[1] + outputLen)//3, activation="swish", use_bias=True))
+    model.add(Dropout(.3))
+    model.add(Dense((inputShape[1] + outputLen)//3, activation="swish"))
     model.add(Normalization())
     model.add(Dropout(.2))
     model.add(Dense(outputLen, activation="linear"))
@@ -185,7 +185,7 @@ def createAndReturnDqnAgent(n_action,input_shape):
                     delta_clip=0.01,
                     enable_double_dqn=True,
                 )
-    dqn.compile(Adam(learning_rate=0.00025), metrics=["mae"])
+    dqn.compile(Adam(learning_rate=0.001, decay=0.004, amsgrad=True), metrics=["mae"])
     model.summary()
     return dqn
 
@@ -197,7 +197,7 @@ def createEnvironment(agent):
 async def main():
     checkCurrentEnvironment()
     # Create one environment for training and one for evaluation
-    trainEnv = createEnvironment(RandomPlayer(battle_format="gen8randombattle"))
+    trainEnv = createEnvironment(MaxBasePowerPlayer(battle_format="gen8randombattle"))
     evalEnv = createEnvironment(RandomPlayer(battle_format="gen8randombattle"))
 
     # Compute dimensions
@@ -210,11 +210,11 @@ async def main():
 
     # trainingTuner(model,n_action,policy,memory,trainEnv,dqnDict, randomAgent,maxAgent,heuristicsAgent, 3)
     dqn = createAndReturnDqnAgent(n_action,input_shape)
-    # loadWeights(dqn, "Saved Models/model35/savedModel")
+    loadWeights(dqn, "Saved Models/model53/savedModel")
 
-    trainAgainstAgent(dqn, 30000, trainEnv, randomAgent)
-    # trainAgainstAgent(dqn, 60000, trainEnv, maxAgent)
-    # trainAgainstAgent(dqn, 30000, trainEnv, heuristicsAgent)
+    # trainAgainstAgent(dqn, 100000, trainEnv, randomAgent)
+    # trainAgainstAgent(dqn, 100000, trainEnv, maxAgent)
+    trainAgainstAgent(dqn, 60000, trainEnv, heuristicsAgent)
     trainEnv.close()
     dqnDict = {}
     dqnDict[(30000,30000,30000)] = dqn
