@@ -1,0 +1,7 @@
+Random Training Steps: " 50000 " Max Damage Agent Training Steps: " 0 " Heuristics Agent Training Steps: " 0 " ------Cross Evaluating against all agents starting ------------------------------------Cross evaluation of DQN with baselines:------------------  ----------------  --------------  ------------------  ------------------
+-                   SimpleRLPlayer 2  RandomPlayer 4  MaxBasePowerPlay 2  EasySimpleHeuris 2
+SimpleRLPlayer 2                      0.59            0.13                0.04
+RandomPlayer 4      0.41                              0.05                0.04
+MaxBasePowerPlay 2  0.87              0.95                                0.3
+EasySimpleHeuris 2  0.96              0.96            0.7
+------------------  ----------------  --------------  ------------------  ------------------

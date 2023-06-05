@@ -8,12 +8,13 @@ from rl.memory import SequentialMemory
 from rl.policy import LinearAnnealedPolicy, EpsGreedyQPolicy
 from tabulate import tabulate
 from tensorflow.keras import Input,regularizers
-from tensorflow.keras.layers import Dense, Flatten, Normalization, Dropout, InputLayer
+from tensorflow.keras.layers import Dense, Flatten, Normalization, Dropout, InputLayer, Conv1D, LSTM
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import L1L2
 import os
 from poke_env import PlayerConfiguration, ShowdownServerConfiguration
+from EasySimpleHeuristicPlayer import EasySimpleHeuristicPlayer
 from SimpleRLPlayer import SimpleRLPlayer
 import sys
 # from matplotlib import pyplot as plt
@@ -31,16 +32,29 @@ from poke_env.player import (
 )
     
 def buildModelLayers(model,inputShape, outputLen):
-    model.add(Dense(inputShape[1], activation="swish", input_shape = inputShape))
-    model.add(Normalization())
+    # model.add(Dense(inputShape[1], activation="swish", input_shape = inputShape))
+    # model.add(Normalization())
+    # model.add(Flatten())
+    # model.add(Dense(512 , activation="swish"))
+    # model.add(Normalization())
+    # model.add(Dropout(.5))
+    # model.add(Dense(256 , activation="swish"))
+    # model.add(Normalization())
+    # model.add(Dropout(.3))
+    # model.add(Dense(128 , activation="swish"))
+    # model.add(Normalization())
+    # model.add(Dropout(.2))
+    # model.add(Dense(64 , activation="swish"))
+    # model.add(Normalization()) 
+    # model.add(Dense(64 , activation="swish"))
+    # model.add(Normalization())
+    # model.add(Dense(outputLen, activation="linear"))
+
+    model.add(Dense(128, activation="swish", input_shape = inputShape))
+    model.add(Normalization()) 
     model.add(Flatten())
     model.add(Dropout(.5))
-    model.add(Dense((inputShape[1] + outputLen)//2, activation="swish"))
-    model.add(Normalization())
-    model.add(Dropout(.3))
-    model.add(Dense((inputShape[1] + outputLen)//3, activation="swish"))
-    model.add(Normalization())
-    model.add(Dropout(.2))
+    model.add(Dense(64 , activation="swish"))
     model.add(Dense(outputLen, activation="linear"))
 
 def trainAgainstAgent(dqn, steps, trainingEnv, agent, restart = False):
@@ -78,12 +92,12 @@ def crossEval(dqn, evalEnv,currentFile):
     currentFile.write("Cross Evaluating against all agents starting ------------------------------------")
     # Cross evaluate the player with included util method
     evalEnv.reset_env(restart = False)
-    n_challenges = 50
+    n_challenges = 100
     players = [
         evalEnv.agent,
         RandomPlayer(battle_format="gen8randombattle"),
         MaxBasePowerPlayer(battle_format="gen8randombattle"),
-        SimpleHeuristicsPlayer(battle_format="gen8randombattle"),
+        EasySimpleHeuristicPlayer(battle_format="gen8randombattle"),
     ]
     cross_eval_task = background_cross_evaluate(players, n_challenges)
     dqn.test(
@@ -185,7 +199,7 @@ def createAndReturnDqnAgent(n_action,input_shape):
                     delta_clip=0.01,
                     enable_double_dqn=True,
                 )
-    dqn.compile(Adam(learning_rate=0.001, decay=0.004, amsgrad=True), metrics=["mae"])
+    dqn.compile(Adam(learning_rate=0.00025, amsgrad=True), metrics=["mae"])
     model.summary()
     return dqn
 
@@ -195,9 +209,9 @@ def createEnvironment(agent):
     return trainEnv
 
 async def main():
-    checkCurrentEnvironment()
+    # checkCurrentEnvironment()
     # Create one environment for training and one for evaluation
-    trainEnv = createEnvironment(MaxBasePowerPlayer(battle_format="gen8randombattle"))
+    trainEnv = createEnvironment(RandomPlayer(battle_format="gen8randombattle"))
     evalEnv = createEnvironment(RandomPlayer(battle_format="gen8randombattle"))
 
     # Compute dimensions
@@ -207,17 +221,24 @@ async def main():
     randomAgent = RandomPlayer(battle_format="gen8randombattle")
     maxAgent = MaxBasePowerPlayer(battle_format="gen8randombattle")
     heuristicsAgent = SimpleHeuristicsPlayer(battle_format="gen8randombattle")
+    easyHeuristicAgent = EasySimpleHeuristicPlayer(battle_format="gen8randombattle")
 
     # trainingTuner(model,n_action,policy,memory,trainEnv,dqnDict, randomAgent,maxAgent,heuristicsAgent, 3)
     dqn = createAndReturnDqnAgent(n_action,input_shape)
-    loadWeights(dqn, "Saved Models/model53/savedModel")
+    # loadWeights(dqn, "Saved Models/model133/savedModel")
+    
+    randomStep = 50000
+    maxStep = 0
+    easyHeuristicStep = 0
+    heuristicStep = 0
 
-    # trainAgainstAgent(dqn, 100000, trainEnv, randomAgent)
-    # trainAgainstAgent(dqn, 100000, trainEnv, maxAgent)
-    trainAgainstAgent(dqn, 60000, trainEnv, heuristicsAgent)
+    trainAgainstAgent(dqn, randomStep, trainEnv, randomAgent)
+    # trainAgainstAgent(dqn, maxStep, trainEnv, maxAgent)
+    # trainAgainstAgent(dqn, easyHeuristicStep, trainEnv, easyHeuristicAgent)
+    # trainAgainstAgent(dqn, heuristicStep, trainEnv, heuristicsAgent)
     trainEnv.close()
     dqnDict = {}
-    dqnDict[(30000,30000,30000)] = dqn
+    dqnDict[(randomStep,maxStep,easyHeuristicStep)] = dqn
 
     print("Attempting to run Evals and save to file --------")
 
@@ -227,6 +248,7 @@ async def main():
 
     print("Directory '% s' is built!" % modelDir) 
     relativePath = "Saved Models/model" + nextNum
+    dqn.save_weights(relativePath + "/savedModel")
     try:
         currentFile = open(relativePath + "/evalutationResults.txt", "w")
         evalAllDqns(evalEnv,dqnDict,currentFile)
@@ -234,7 +256,7 @@ async def main():
         currentFile.close()
         
     evalEnv.close()
-    dqn.save_weights(relativePath + "/savedModel")
+    
 
 
 if __name__ == "__main__":

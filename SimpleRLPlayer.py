@@ -25,8 +25,13 @@ def wordToNumber(word):
 class SimpleRLPlayer(Gen8EnvSinglePlayer):
     def calc_reward(self, last_battle, current_battle) -> float:
         return self.reward_computing_helper(
-            current_battle,fainted_value=3.0, hp_value=1.0, victory_value=30.0, status_value= .1
+            current_battle,fainted_value=1, victory_value=30.0, hp_value=.1, status_value=.5
         )
+    
+    def calculateTypeAdvantage(self,types, opponent):
+        typeAdvantage = 1
+        typeAdvantage = opponent.damage_multiplier(types[0]) if types[0] is not None else 1 * opponent.damage_multiplier(types[1]) if types[1] is not None else 1
+        return typeAdvantage
 
     def embed_battle(self, battle: AbstractBattle) -> ObservationType:
         # -1 indicates that the move does not have a base power
@@ -69,283 +74,277 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         activeOpponentPokemonAbility = np.zeros(1)
         activeFields = np.zeros(12)
         currentWeather = np.zeros(1)
+        pokemonIds = -np.ones(6)
+        opponentPokemonIds = -np.ones(6)
+        activePokemonMovesIds = -np.ones(4)
+        opponentActivePokemonIds = -np.ones(4)
+        pokemonMatchupAgainstOpponent = -np.ones(6)
+        opponentPokemonMatchupAgainstPokemon = -np.ones(6)
+        pokemonStatuses = -np.ones(6)
 
         canDynamax[0] = 1 if battle.can_dynamax else 0
         dynamaxTurn[0] = battle.dynamax_turns_left/3 if battle.dynamax_turns_left != None else -1
-        opponentDyanamaxTurn[0] = battle.opponent_dynamax_turns_left/3 if battle.opponent_dynamax_turns_left != None else -1
+        # opponentDyanamaxTurn[0] = battle.opponent_dynamax_turns_left/3 if battle.opponent_dynamax_turns_left != None else -1
         currentWeather[0] = -1 if not battle.weather else list(battle.weather.items())[0][0].value/8
-        opponentCanDynamax[0] = 1 if battle.opponent_can_dynamax else 0
-        activeOpponentPokemonStatus[0] = opponentActivePokemon.status.value/6 if opponentActivePokemon.status else 0
-        activePokemonStatus[0] = activePokemon.status.value/6 if activePokemon.status else 0
-        activePokemonAbility[0] = -1 if not activePokemon.ability else wordToNumber(activePokemon.ability)
-        activeOpponentPokemonAbility[0] = -1 if not opponentActivePokemon.ability else wordToNumber(opponentActivePokemon.ability)
-        activePokemonStatusCounter[0] = -1 if not activePokemon.status_counter else activePokemon.status_counter/100
+        # opponentCanDynamax[0] = 1 if battle.opponent_can_dynamax else 0
+        activeOpponentPokemonStatus[0] = opponentActivePokemon.status.value/7 if opponentActivePokemon.status else 0
+        activePokemonStatus[0] = activePokemon.status.value/7 if activePokemon.status else 0
+        # activePokemonAbility[0] = -1 if not activePokemon.ability else wordToNumber(activePokemon.ability)
+        # activeOpponentPokemonAbility[0] = -1 if not opponentActivePokemon.ability else wordToNumber(opponentActivePokemon.ability)
+        # activePokemonStatusCounter[0] = -1 if not activePokemon.status_counter else activePokemon.status_counter/100
 
-        activePokemonStats[0] = activePokemon.stats['hp'] /500 if 'hp' in  activePokemon.stats and activePokemon.stats['hp'] else -1
-        activePokemonStats[1] = activePokemon.stats['atk']/500 if 'atk' in activePokemon.stats and activePokemon.stats['atk'] else -1
-        activePokemonStats[2] = activePokemon.stats['def']/500 if 'def' in activePokemon.stats and activePokemon.stats['def'] else -1
-        activePokemonStats[3] = activePokemon.stats['spa']/500 if 'spa' in activePokemon.stats and activePokemon.stats['spa'] else -1
-        activePokemonStats[4] = activePokemon.stats['spd']/500 if 'spd' in activePokemon.stats and activePokemon.stats['spd'] else -1
-        activePokemonStats[5] = activePokemon.stats['spe']/500 if 'spe' in activePokemon.stats and activePokemon.stats['spe'] else -1
+        # activePokemonStats[0] = activePokemon.stats['hp'] /500 if 'hp' in  activePokemon.stats and activePokemon.stats['hp'] else -1
+        # activePokemonStats[1] = activePokemon.stats['atk']/500 if 'atk' in activePokemon.stats and activePokemon.stats['atk'] else -1
+        # activePokemonStats[2] = activePokemon.stats['def']/500 if 'def' in activePokemon.stats and activePokemon.stats['def'] else -1
+        # activePokemonStats[3] = activePokemon.stats['spa']/500 if 'spa' in activePokemon.stats and activePokemon.stats['spa'] else -1
+        # activePokemonStats[4] = activePokemon.stats['spd']/500 if 'spd' in activePokemon.stats and activePokemon.stats['spd'] else -1
+        # activePokemonStats[5] = activePokemon.stats['spe']/500 if 'spe' in activePokemon.stats and activePokemon.stats['spe'] else -1
 
-        for field,turn in battle.fields.items():
-            activeFields[field.value - 1] = 1
+        # for field,turn in battle.fields.items():
+        #     activeFields[field.value - 1] = 1
 
-        for sideCondition,val in battle.opponent_side_conditions.items():
-            opponentSideConditions[sideCondition.value - 1] = 1
+        # for sideCondition,val in battle.opponent_side_conditions.items():
+        #     opponentSideConditions[sideCondition.value - 1] = 1
         
-        for sideCondition,val in battle.side_conditions.items():
-            activePokemonSideConditions[sideCondition.value - 1] = 1
+        # for sideCondition,val in battle.side_conditions.items():
+        #     activePokemonSideConditions[sideCondition.value - 1] = 1
 
-        for i,pokemon in enumerate(battle.available_switches):
-            firstTypeMultiplyer = pokemon.type_1.damage_multiplier(
-                    opponentActivePokemon.type_1,
-                    opponentActivePokemon.type_2,)
-            teamDmgMultiplyer[i] = firstTypeMultiplyer
+        # for i,pokemon in enumerate(battle.available_switches):
+        #     firstTypeMultiplyer = pokemon.type_1.damage_multiplier(
+        #             opponentActivePokemon.type_1,
+        #             opponentActivePokemon.type_2,)
+        #     teamDmgMultiplyer[i] = firstTypeMultiplyer
 
-            if pokemon.type_2 != None:
-                secondTypeMultiplyer = pokemon.type_2.damage_multiplier(
-                        opponentActivePokemon.type_1,
-                        opponentActivePokemon.type_2,)
-                teamDmgMultiplyer[i] *= secondTypeMultiplyer
-            teamDmgMultiplyer[i] /= 4
+        #     if pokemon.type_2 != None:
+        #         secondTypeMultiplyer = pokemon.type_2.damage_multiplier(
+        #                 opponentActivePokemon.type_1,
+        #                 opponentActivePokemon.type_2,)
+        #         teamDmgMultiplyer[i] *= secondTypeMultiplyer
+        #     teamDmgMultiplyer[i] /= 4
 
         for i,pokemon in enumerate(battle.team.values()):
-            i = i*2
+            i = i
             if pokemon.fainted:
-                teamTypes[i] = -1
-                teamTypes[i + 1] = -1
+                teamTypes[i*2] = -1
+                teamTypes[i*2 + 1] = -1
+                pokemonIds[i] = -1
+                pokemonMatchupAgainstOpponent[i] = -1
             else:
-                teamTypes[i] = pokemon.type_1.value/19 if pokemon.type_1 != None else 0
-                teamTypes[i + 1] =  pokemon.type_2.value/19 if pokemon.type_2 != None else 0
-                teamHealth[i//2] = pokemon.current_hp/800 if pokemon.current_hp else 0 #divide by maximum possible HP
-
+                teamTypes[i*2] = pokemon.type_1.value/19 if pokemon.type_1 != None else 0
+                teamTypes[i*2 + 1] =  pokemon.type_2.value/19 if pokemon.type_2 != None else 0
+                teamHealth[i] = pokemon.current_hp/800 if pokemon.current_hp else 0 #divide by maximum possible HP
+                pokemonIds[i] = wordToNumber(pokemon.species)
+                pokemonMatchupAgainstOpponent[i] = self.calculateTypeAdvantage(pokemon.types, opponentActivePokemon)/4
+                pokemonStatuses[i] = pokemon.status.value/7 if pokemon.status else 0
 
         for i, pokemon in enumerate(battle.opponent_team.values()):
             i = i*2
             if pokemon.fainted:
                 opponentTeamTypes[i] = -1
                 opponentTeamTypes[i + 1] = -1
+                opponentPokemonIds[i//2] = -1
             else:
                 opponentTeamTypes[i] = pokemon.type_1.value/19 if pokemon.type_1 != None else 0
                 opponentTeamTypes[i + 1] =  pokemon.type_2.value/19 if pokemon.type_2 != None else 0
                 opponentTeamHealth[i//2] = pokemon.current_hp/800 if pokemon.current_hp else 0 #divide by maximum possible HP
+                opponentPokemonIds[i//2] = wordToNumber(pokemon.species)
 
         for i, move in enumerate(battle.available_moves):
             activePokemonMovesStatusEffects[i] = move.status.value/7 if move.status != None else 0
             activePokemonMovesBasePower[i] = (
                 move.base_power / 300
             )
-            activePokemonMovesAccuracy[i] = move.accuracy
-            activePokemonMovesCritRatio[i] = move.crit_ratio
+            # activePokemonMovesAccuracy[i] = move.accuracy
+            # activePokemonMovesCritRatio[i] = move.crit_ratio
 
-            activePokemonMovesCurrentPp[i] = -1 if not move.current_pp else move.current_pp
-            activePokemonMovesExpectedHits[i] = -1 if not move.expected_hits else move.expected_hits/5
-            activePokemonMovesForceSwitch[i] = 0 if not move.force_switch else 1
-            activePokemonMovesHeals[i] = -1 if not move.heal else move.heal
-            activePokemonMovesPriority[i] = move.priority
-            activePokemonMovesRecoil[i] = -1 if not move.recoil else move.recoil
-            activePokemonMovesSideConditions[i] = -1 if not move.side_condition else wordToNumber(move.side_condition)
-            activePokemonMovesTerrain[i] = -1 if not move.terrain else move.terrain.value
-            activePokemonMovesWeather[i] = -1 if not move.weather else move.weather.value
+            # activePokemonMovesCurrentPp[i] = -1 if not move.current_pp else move.current_pp
+            # activePokemonMovesExpectedHits[i] = -1 if not move.expected_hits else move.expected_hits/5
+            # activePokemonMovesForceSwitch[i] = 0 if not move.force_switch else 1
+            # activePokemonMovesHeals[i] = -1 if not move.heal else move.heal
+            # activePokemonMovesPriority[i] = move.priority
+            # activePokemonMovesRecoil[i] = -1 if not move.recoil else move.recoil
+            # activePokemonMovesSideConditions[i] = -1 if not move.side_condition else wordToNumber(move.side_condition)
+            # activePokemonMovesTerrain[i] = -1 if not move.terrain else move.terrain.value
+            # activePokemonMovesWeather[i] = -1 if not move.weather else move.weather.value
+            # activePokemonMovesIds[i] = -1 if not move.id else wordToNumber(move.id)
 
-            if move.type and activePokemonMovesBasePower[i] > 0:
-                activePokemonMovesDmgMultiplier[i] = move.type.damage_multiplier(
-                    opponentActivePokemon.type_1,
-                    opponentActivePokemon.type_2,) / 4
+            activePokemonMovesDmgMultiplier[i] = opponentActivePokemon.damage_multiplier(move) if move.base_power else -1
 
         inputVector = np.concatenate(
             [
                 activePokemonMovesBasePower,
                 activePokemonMovesDmgMultiplier,
-                faintedTeamPokemon,
+                # faintedTeamPokemon,
                 canDynamax,
                 dynamaxTurn,
-                teamTypes,
-                teamDmgMultiplyer,
+                # teamTypes,
+                # teamDmgMultiplyer,
                 activePokemonMovesStatusEffects,
                 teamHealth,
-                activePokemonSideConditions,
+                # activePokemonSideConditions,
                 activePokemonStatus,
-                activePokemonStats,
-                activePokemonAbility,
-                activePokemonStatusCounter,
-                activePokemonMovesAccuracy,
-                activePokemonMovesCritRatio,
-                activePokemonMovesCurrentPp,
-                activePokemonMovesExpectedHits,
-                activePokemonMovesForceSwitch,
-                activePokemonMovesHeals,
-                activePokemonMovesPriority,
-                activePokemonMovesRecoil,
-                activePokemonMovesSideConditions,
-                activePokemonMovesTerrain,
-                activePokemonMovesWeather,
-                faintedOpponentTeamPokemon,
-                opponentTeamTypes,
-                opponentDyanamaxTurn,
-                opponentCanDynamax,
-                opponentSideConditions,
+                # activePokemonStats,
+                # activePokemonAbility,
+                # activePokemonStatusCounter,
+                # activePokemonMovesAccuracy,
+                # activePokemonMovesCritRatio,
+                # activePokemonMovesCurrentPp,
+                # activePokemonMovesExpectedHits,
+                # activePokemonMovesForceSwitch,
+                # activePokemonMovesHeals,
+                # activePokemonMovesPriority,
+                # activePokemonMovesRecoil,
+                # activePokemonMovesSideConditions,
+                # activePokemonMovesTerrain,
+                # activePokemonMovesWeather,
+                # faintedOpponentTeamPokemon,
+                # opponentTeamTypes,
+                # opponentDyanamaxTurn,
+                # opponentCanDynamax,
+                # opponentSideConditions,
                 opponentTeamHealth,
                 activeOpponentPokemonStatus,
-                activeOpponentPokemonAbility,
-                activeFields,
-                currentWeather
+                # activeOpponentPokemonAbility,
+                # activeFields,
+                currentWeather,
+                # pokemonIds,
+                # opponentPokemonIds,
+                # activePokemonMovesIds,
+                pokemonMatchupAgainstOpponent,
+                # pokemonStatuses
             ]
         )
 
         return np.float32(inputVector)
 
     def describe_embedding(self) -> Space:
-        activePokemonMovesBasePowerLower = [-1]*4
-        activePokemonMovesDmgMultiplierLower = [-1]*4
-        faintedTeamPokemonLower = [0]
-        canDynamaxLower = [0]
-        dynamaxTurnLower = [-1]
-        teamTypesLower = [0]*12
-        teamDmgMultiplyerLower = [-1]*6
-        activePokemonMovesStatusEffectsLower = [-1]*4
-        teamHealthLower = [0]*6
-        activePokemonSideConditionsLower  = [0]*20
-        activePokemonStatusLower = [0]
-        activePokemonStatsLower = [-1]*6
-        activePokemonAbilityLower = [-1]*1
-        activePokemonStatusCounterLower = [-1]*1
-        activePokemonMovesAccuracyLower = [-1]*4
-        activePokemonMovesCritRatioLower = [-1]*4
-        activePokemonMovesCurrentPpLower = [-1]*4
-        activePokemonMovesExpectedHitsLower = [-1]*4
-        activePokemonMovesForceSwitchLower = [0]*4
-        activePokemonMovesHealsLower = [-1]*4
-        activePokemonMovesPriorityLower = [-1]*4
-        activePokemonMovesRecoilLower = [-1]*4
-        activePokemonMovesSideConditionsLower = [-1]*4
-        activePokemonMovesTerrainLower = [-1]*4
-        activePokemonMovesWeatherLower = [-1]*4
-        faintedOpponentTeamPokemonLower = [0]
-        opponentTeamTypesLower = [0]*12
-        opponentDyanamaxTurnLower = [-1]
-        opponentCanDynamaxLower = [0]
-        opponentSideConditionsLower = [0]*20
-        opponentTeamHealthLower = [0]*6
-        activeOpponentPokemonStatusLower = [0]
-        activeOpponentPokemonAbilityLower = [-1]*1
-        activeFieldsLower = [0]*12
-        currentWeatherLower = [-1]
-
-
-        activePokemonMovesBasePowerUpper = [1]*4
-        activePokemonMovesDmgMultiplierUpper = [1]*4
-        faintedTeamPokemonUpper = [1]
-        canDynamaxUpper = [1]
-        dynamaxTurnUpper = [1]
-        teamTypesUpper = [1]*12
-        teamDmgMultiplyerUpper = [1]*6
-        activePokemonMovesStatusEffectsUpper = [1]*4
-        teamHealthUpper = [1]*6
-        activePokemonSideConditionsUpper = [1]*20
-        activePokemonStatusUpper = [1]
-        activePokemonStatsUpper = [1]*6
-        activePokemonAbilityUpper = [1]*1
-        activePokemonStatusCounterUpper = [1]*1
-        activePokemonMovesAccuracyUpper = [1]*4
-        activePokemonMovesCritRatioUpper = [1]*4
-        activePokemonMovesCurrentPpUpper = [1]*4
-        activePokemonMovesExpectedHitsUpper = [1]*4
-        activePokemonMovesForceSwitchUpper = [1]*4
-        activePokemonMovesHealsUpper = [1]*4
-        activePokemonMovesPriorityUpper = [1]*4
-        activePokemonMovesRecoilUpper = [1]*4
-        activePokemonMovesSideConditionsUpper = [1]*4
-        activePokemonMovesTerrainUpper = [1]*4
-        activePokemonMovesWeatherUpper = [1]*4
-        faintedOpponentTeamPokemonUpper = [1]
-        opponentTeamTypesUpper = [1]*12
-        opponentDyanamaxTurnUpper = [1]
-        opponentCanDynamaxUpper = [1]
-        opponentSideConditionsUpper = [1]*20
-        opponentTeamHealthUpper = [1]*6
-        activeOpponentPokemonStatusUpper = [1]
-        activeOpponentPokemonAbilityUpper = [1]*1
-        activeFieldsUpper = [0]*12
-        currentWeatherUpper = [1]
+        activePokemonMovesBasePower = [[-1]*4,[1]*4]
+        activePokemonMovesDmgMultiplier = [[-1]*4,[1]*4]
+        faintedTeamPokemon = [[0],[1]]
+        canDynamax = [[0],[1]]
+        dynamaxTurn = [[-1],[1]]
+        teamTypes = [[0]*12,[1]*12]
+        teamDmgMultiplyer = [[-1]*6,[1]*6]
+        activePokemonMovesStatusEffects = [[-1]*4,[1]*4]
+        teamHealth = [[0]*6,[1]*6]
+        activePokemonSideConditions  = [[0]*20,[1]*20]
+        activePokemonStatus = [[-1],[1]]
+        activePokemonStats = [[-1]*6,[1]*6]
+        activePokemonAbility = [[-1]*1,[1]*1]
+        activePokemonStatusCounter = [[-1]*1,[1]*1]
+        activePokemonMovesAccuracy = [[-1]*4,[1]*4]
+        activePokemonMovesCritRatio = [[-1]*4,[1]*4]
+        activePokemonMovesCurrentPp = [[-1]*4,[1]*4]
+        activePokemonMovesExpectedHits = [[-1]*4,[1]*4]
+        activePokemonMovesForceSwitch = [[0]*4,[1]*4]
+        activePokemonMovesHeals = [[-1]*4,[1]*4]
+        activePokemonMovesPriority = [[-1]*4,[1]*4]
+        activePokemonMovesRecoil = [[-1]*4,[1]*4]
+        activePokemonMovesSideConditions = [[-1]*4,[1]*4]
+        activePokemonMovesTerrain = [[-1]*4,[1]*4]
+        activePokemonMovesWeather = [[-1]*4,[1]*4]
+        faintedOpponentTeamPokemon = [[0],[1]]
+        opponentTeamTypes = [[0]*12,[1]*12]
+        opponentDyanamaxTurn = [[-1],[1]]
+        opponentCanDynamax = [[0],[1]]
+        opponentSideConditions = [[0]*20,[1]*20]
+        opponentTeamHealth = [[0]*6,[1]*6]
+        activeOpponentPokemonStatus = [[-1],[1]]
+        activeOpponentPokemonAbility = [[-1]*1,[1]*1]
+        activeFields = [[0]*12,[0]*12]
+        currentWeather = [[-1],[1]]
+        pokemonIds = [[-1]*6,[1]*6]
+        opponentPokemonIds = [[-1]*6,[1]*6]
+        activePokemonMovesIds = [[-1]*4,[1]*4]
+        pokemonMatchupAgainstOpponent = [[-1]*6,[1]*6]
+        pokemonStatuses = [[-1]*6,[1]*6]
 
         inputVectorLow =np.concatenate( 
         [
-            activePokemonMovesBasePowerLower,
-            activePokemonMovesDmgMultiplierLower,
-            faintedTeamPokemonLower,
-            canDynamaxLower,
-            dynamaxTurnLower,
-            teamTypesLower,
-            teamDmgMultiplyerLower,
-            activePokemonMovesStatusEffectsLower,
-            teamHealthLower,
-            activePokemonSideConditionsLower,
-            activePokemonStatusLower,
-            activePokemonStatsLower,
-            activePokemonAbilityLower,
-            activePokemonStatusCounterLower,
-            activePokemonMovesAccuracyLower,
-            activePokemonMovesCritRatioLower,
-            activePokemonMovesCurrentPpLower,
-            activePokemonMovesExpectedHitsLower,
-            activePokemonMovesForceSwitchLower,
-            activePokemonMovesHealsLower,
-            activePokemonMovesPriorityLower,
-            activePokemonMovesRecoilLower,
-            activePokemonMovesSideConditionsLower,
-            activePokemonMovesTerrainLower,
-            activePokemonMovesWeatherLower,
-            faintedOpponentTeamPokemonLower,
-            opponentTeamTypesLower,
-            opponentDyanamaxTurnLower,
-            opponentCanDynamaxLower,
-            opponentSideConditionsLower,
-            opponentTeamHealthLower,
-            activeOpponentPokemonStatusLower,
-            activeOpponentPokemonAbilityLower,
-            activeFieldsLower,
-            currentWeatherLower,
+            activePokemonMovesBasePower[0],
+            activePokemonMovesDmgMultiplier[0],
+            # faintedTeamPokemon[0],
+            canDynamax[0],
+            dynamaxTurn[0],
+            # teamTypes[0],
+            # teamDmgMultiplyer[0],
+            activePokemonMovesStatusEffects[0],
+            teamHealth[0],
+            # activePokemonSideConditions[0],
+            activePokemonStatus[0],
+            # activePokemonStats[0],
+            # activePokemonAbility[0],
+            # activePokemonStatusCounter[0],
+            # activePokemonMovesAccuracy[0],
+            # activePokemonMovesCritRatio[0],
+            # activePokemonMovesCurrentPp[0],
+            # activePokemonMovesExpectedHits[0],
+            # activePokemonMovesForceSwitch[0],
+            # activePokemonMovesHeals[0],
+            # activePokemonMovesPriority[0],
+            # activePokemonMovesRecoil[0],
+            # activePokemonMovesSideConditions[0],
+            # activePokemonMovesTerrain[0],
+            # activePokemonMovesWeather[0],
+            # faintedOpponentTeamPokemon[0],
+            # opponentTeamTypes[0],
+            # opponentDyanamaxTurn[0],
+            # opponentCanDynamax[0],
+            # opponentSideConditions[0],
+            opponentTeamHealth[0],
+            activeOpponentPokemonStatus[0],
+            # activeOpponentPokemonAbility[0],
+            # activeFields[0],
+            currentWeather[0],
+            # pokemonIds[0],
+            # opponentPokemonIds[0],
+            # activePokemonMovesIds[0]
+            pokemonMatchupAgainstOpponent[0],
+            # pokemonStatuses[0]
         ] )
 
         inputVectorHigh = np.concatenate (
             [
-                activePokemonMovesBasePowerUpper,
-                activePokemonMovesDmgMultiplierUpper,
-                faintedTeamPokemonUpper,
-                canDynamaxUpper,
-                dynamaxTurnUpper,
-                teamTypesUpper,
-                teamDmgMultiplyerUpper,
-                activePokemonMovesStatusEffectsUpper,
-                teamHealthUpper,
-                activePokemonSideConditionsUpper,
-                activePokemonStatusUpper,
-                activePokemonStatsUpper,
-                activePokemonAbilityUpper,
-                activePokemonStatusCounterUpper,
-                activePokemonMovesAccuracyUpper,
-                activePokemonMovesCritRatioUpper,
-                activePokemonMovesCurrentPpUpper,
-                activePokemonMovesExpectedHitsUpper,
-                activePokemonMovesForceSwitchUpper,
-                activePokemonMovesHealsUpper,
-                activePokemonMovesPriorityUpper,
-                activePokemonMovesRecoilUpper,
-                activePokemonMovesSideConditionsUpper,
-                activePokemonMovesTerrainUpper,
-                activePokemonMovesWeatherUpper,
-                faintedOpponentTeamPokemonUpper,
-                opponentTeamTypesUpper,
-                opponentDyanamaxTurnUpper,
-                opponentCanDynamaxUpper,
-                opponentSideConditionsUpper,
-                opponentTeamHealthUpper,
-                activeOpponentPokemonStatusUpper,
-                activeOpponentPokemonAbilityUpper,
-                activeFieldsUpper,
-                currentWeatherUpper,
+                activePokemonMovesBasePower[1],
+                activePokemonMovesDmgMultiplier[1],
+                # faintedTeamPokemon[1],
+                canDynamax[1],
+                dynamaxTurn[1],
+                # teamTypes[1],
+                # teamDmgMultiplyer[1],
+                activePokemonMovesStatusEffects[1],
+                teamHealth[1],
+                # activePokemonSideConditions[1],
+                activePokemonStatus[1],
+                # activePokemonStats[1],
+                # activePokemonAbility[1],
+                # activePokemonStatusCounter[1],
+                # activePokemonMovesAccuracy[1],
+                # activePokemonMovesCritRatio[1],
+                # activePokemonMovesCurrentPp[1],
+                # activePokemonMovesExpectedHits[1],
+                # activePokemonMovesForceSwitch[1],
+                # activePokemonMovesHeals[1],
+                # activePokemonMovesPriority[1],
+                # activePokemonMovesRecoil[1],
+                # activePokemonMovesSideConditions[1],
+                # activePokemonMovesTerrain[1],
+                # activePokemonMovesWeather[1],
+                # faintedOpponentTeamPokemon[1],
+                # opponentTeamTypes[1],
+                # opponentDyanamaxTurn[1],
+                # opponentCanDynamax[1],
+                # opponentSideConditions[1],
+                opponentTeamHealth[1],
+                activeOpponentPokemonStatus[1],
+                # activeOpponentPokemonAbility[1],
+                # activeFields[1],
+                currentWeather[1],
+                # pokemonIds[1],
+                # opponentPokemonIds[1],
+                # activePokemonMovesIds[1]
+                pokemonMatchupAgainstOpponent[1],
+                # pokemonStatuses[1]
             ]
             )
 
