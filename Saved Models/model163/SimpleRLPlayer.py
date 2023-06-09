@@ -84,9 +84,9 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
 
         canDynamax[0] = 1 if battle.can_dynamax else 0
         dynamaxTurn[0] = battle.dynamax_turns_left/3 if battle.dynamax_turns_left != None else -1
-        opponentDyanamaxTurn[0] = battle.opponent_dynamax_turns_left/3 if battle.opponent_dynamax_turns_left != None else -1
+        # opponentDyanamaxTurn[0] = battle.opponent_dynamax_turns_left/3 if battle.opponent_dynamax_turns_left != None else -1
         currentWeather[0] = -1 if not battle.weather else list(battle.weather.items())[0][0].value/8
-        opponentCanDynamax[0] = 1 if battle.opponent_can_dynamax else 0
+        # opponentCanDynamax[0] = 1 if battle.opponent_can_dynamax else 0
         activeOpponentPokemonStatus[0] = opponentActivePokemon.status.value/7 if opponentActivePokemon.status else 0
         activePokemonStatus[0] = activePokemon.status.value/7 if activePokemon.status else 0
         # activePokemonAbility[0] = -1 if not activePokemon.ability else wordToNumber(activePokemon.ability)
@@ -289,8 +289,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
             # activePokemonMovesWeather[0],
             # faintedOpponentTeamPokemon[0],
             # opponentTeamTypes[0],
-            opponentDyanamaxTurn[0],
-            opponentCanDynamax[0],
+            # opponentDyanamaxTurn[0],
+            # opponentCanDynamax[0],
             # opponentSideConditions[0],
             opponentTeamHealth[0],
             activeOpponentPokemonStatus[0],
@@ -333,8 +333,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
                 # activePokemonMovesWeather[1],
                 # faintedOpponentTeamPokemon[1],
                 # opponentTeamTypes[1],
-                opponentDyanamaxTurn[1],
-                opponentCanDynamax[1],
+                # opponentDyanamaxTurn[1],
+                # opponentCanDynamax[1],
                 # opponentSideConditions[1],
                 opponentTeamHealth[1],
                 activeOpponentPokemonStatus[1],

@@ -233,7 +233,7 @@ async def main():
     dqn = createAndReturnDqnAgent(n_action,input_shape)
     # loadWeights(dqn, "Saved Models/model133/savedModel")
     
-    randomStep = 50000
+    randomStep = 1
     maxStep = 0
     easyHeuristicStep = 0
     heuristicStep = 0
