@@ -221,9 +221,9 @@ async def main():
     heuristicStep = 0
 
     trainAgainstAgent(dqn, randomStep, trainEnv, randomAgent)
-    # trainAgainstAgent(dqn, maxStep, trainEnv, maxAgent,True)
-    # trainAgainstAgent(dqn, easyHeuristicStep, trainEnv, easyHeuristicAgent,True)
-    # trainAgainstAgent(dqn, heuristicStep, trainEnv, heuristicsAgent, True)
+    # trainAgainstAgent(dqn, maxStep, trainEnv, maxAgent)
+    # trainAgainstAgent(dqn, easyHeuristicStep, trainEnv, easyHeuristicAgent)
+    # trainAgainstAgent(dqn, heuristicStep, trainEnv, heuristicsAgent)
     trainEnv.close()
     dqnDict = {}
     dqnDict[(randomStep,maxStep,easyHeuristicStep)] = dqn

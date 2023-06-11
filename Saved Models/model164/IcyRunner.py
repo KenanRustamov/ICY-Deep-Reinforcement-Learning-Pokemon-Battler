@@ -33,6 +33,24 @@ from poke_env.player import (
 )
     
 def buildModelLayers(model,inputShape, outputLen):
+    # model.add(Dense(inputShape[1], activation="swish", input_shape = inputShape))
+    # model.add(Normalization())
+    # model.add(Flatten())
+    # model.add(Dense(512 , activation="swish"))
+    # model.add(Normalization())
+    # model.add(Dropout(.5))
+    # model.add(Dense(256 , activation="swish"))
+    # model.add(Normalization())
+    # model.add(Dropout(.3))
+    # model.add(Dense(128 , activation="swish"))
+    # model.add(Normalization())
+    # model.add(Dropout(.2))
+    # model.add(Dense(64 , activation="swish"))
+    # model.add(Normalization()) 
+    # model.add(Dense(64 , activation="swish"))
+    # model.add(Normalization())
+    # model.add(Dense(outputLen, activation="linear"))
+
     model.add(Dense(128, activation="swish", input_shape = inputShape))
     model.add(Normalization()) 
     model.add(Flatten())
@@ -215,15 +233,15 @@ async def main():
     dqn = createAndReturnDqnAgent(n_action,input_shape)
     # loadWeights(dqn, "Saved Models/model133/savedModel")
     
-    randomStep = 100000
+    randomStep = 50000
     maxStep = 0
     easyHeuristicStep = 0
     heuristicStep = 0
 
     trainAgainstAgent(dqn, randomStep, trainEnv, randomAgent)
-    # trainAgainstAgent(dqn, maxStep, trainEnv, maxAgent,True)
-    # trainAgainstAgent(dqn, easyHeuristicStep, trainEnv, easyHeuristicAgent,True)
-    # trainAgainstAgent(dqn, heuristicStep, trainEnv, heuristicsAgent, True)
+    # trainAgainstAgent(dqn, maxStep, trainEnv, maxAgent)
+    # trainAgainstAgent(dqn, easyHeuristicStep, trainEnv, easyHeuristicAgent)
+    # trainAgainstAgent(dqn, heuristicStep, trainEnv, heuristicsAgent)
     trainEnv.close()
     dqnDict = {}
     dqnDict[(randomStep,maxStep,easyHeuristicStep)] = dqn

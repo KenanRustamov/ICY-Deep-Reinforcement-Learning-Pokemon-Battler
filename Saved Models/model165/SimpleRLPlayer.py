@@ -25,7 +25,7 @@ def wordToNumber(word):
 class SimpleRLPlayer(Gen8EnvSinglePlayer):
     def calc_reward(self, last_battle, current_battle) -> float:
         return self.reward_computing_helper(
-            current_battle,fainted_value=1, victory_value=6.0, hp_value=.05, status_value=.05
+            current_battle,fainted_value=1, victory_value=30.0, hp_value=.1, status_value=.5
         )
     
     def calculateTypeAdvantage(self,types, opponent):
@@ -99,7 +99,6 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         activePokemonStats[3] = activePokemon.stats['spd'] if 'spd' in activePokemon.stats and activePokemon.stats['spd'] else -1
         activePokemonStats[4] = activePokemon.stats['spe'] if 'spe' in activePokemon.stats and activePokemon.stats['spe'] else -1
 
-
         # print(activePokemon, activePokemonStats)
 
         # for field,turn in battle.fields.items():
@@ -162,7 +161,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
             # activePokemonMovesCurrentPp[i] = -1 if not move.current_pp else move.current_pp
             # activePokemonMovesExpectedHits[i] = -1 if not move.expected_hits else move.expected_hits/5
             # activePokemonMovesForceSwitch[i] = 0 if not move.force_switch else 1
-            activePokemonMovesHeals[i] = -1 if not move.heal else move.heal
+            # activePokemonMovesHeals[i] = -1 if not move.heal else move.heal
             # activePokemonMovesPriority[i] = move.priority
             # activePokemonMovesRecoil[i] = -1 if not move.recoil else move.recoil
             # activePokemonMovesSideConditions[i] = -1 if not move.side_condition else wordToNumber(move.side_condition)
@@ -193,7 +192,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
                 # activePokemonMovesCurrentPp,
                 # activePokemonMovesExpectedHits,
                 # activePokemonMovesForceSwitch,
-                activePokemonMovesHeals,
+                # activePokemonMovesHeals,
                 # activePokemonMovesPriority,
                 # activePokemonMovesRecoil,
                 # activePokemonMovesSideConditions,
@@ -282,7 +281,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
             # activePokemonMovesCurrentPp[0],
             # activePokemonMovesExpectedHits[0],
             # activePokemonMovesForceSwitch[0],
-            activePokemonMovesHeals[0],
+            # activePokemonMovesHeals[0],
             # activePokemonMovesPriority[0],
             # activePokemonMovesRecoil[0],
             # activePokemonMovesSideConditions[0],
@@ -326,7 +325,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
                 # activePokemonMovesCurrentPp[1],
                 # activePokemonMovesExpectedHits[1],
                 # activePokemonMovesForceSwitch[1],
-                activePokemonMovesHeals[1],
+                # activePokemonMovesHeals[1],
                 # activePokemonMovesPriority[1],
                 # activePokemonMovesRecoil[1],
                 # activePokemonMovesSideConditions[1],

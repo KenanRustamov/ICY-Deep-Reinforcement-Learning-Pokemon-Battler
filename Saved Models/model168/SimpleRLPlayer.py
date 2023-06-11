@@ -25,7 +25,7 @@ def wordToNumber(word):
 class SimpleRLPlayer(Gen8EnvSinglePlayer):
     def calc_reward(self, last_battle, current_battle) -> float:
         return self.reward_computing_helper(
-            current_battle,fainted_value=1, victory_value=6.0, hp_value=.05, status_value=.05
+            current_battle,fainted_value=1, victory_value=30.0
         )
     
     def calculateTypeAdvantage(self,types, opponent):

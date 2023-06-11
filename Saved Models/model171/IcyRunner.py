@@ -215,15 +215,15 @@ async def main():
     dqn = createAndReturnDqnAgent(n_action,input_shape)
     # loadWeights(dqn, "Saved Models/model133/savedModel")
     
-    randomStep = 100000
+    randomStep = 120000
     maxStep = 0
     easyHeuristicStep = 0
     heuristicStep = 0
 
     trainAgainstAgent(dqn, randomStep, trainEnv, randomAgent)
-    # trainAgainstAgent(dqn, maxStep, trainEnv, maxAgent,True)
-    # trainAgainstAgent(dqn, easyHeuristicStep, trainEnv, easyHeuristicAgent,True)
-    # trainAgainstAgent(dqn, heuristicStep, trainEnv, heuristicsAgent, True)
+    # trainAgainstAgent(dqn, maxStep, trainEnv, maxAgent)
+    # trainAgainstAgent(dqn, easyHeuristicStep, trainEnv, easyHeuristicAgent)
+    # trainAgainstAgent(dqn, heuristicStep, trainEnv, heuristicsAgent)
     trainEnv.close()
     dqnDict = {}
     dqnDict[(randomStep,maxStep,easyHeuristicStep)] = dqn
