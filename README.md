@@ -12,3 +12,5 @@ Final Battle
 ![](https://github.com/KenanRustamov/ICY/blob/master/Final%20Battle%20Against%20Max%20Damage.gif)
 
 We can see in the final trained agent that the AI has now learned to pick moves that are super effective against the pokemon its battling against. In fact, the evaluation for one of the agents shows a 100% win rate against a random agent, and a 90% win rate against the max damage agent!
+
+![image](https://github.com/KenanRustamov/ICY-Deep-Reinforcement-Learning-Pokemon-Battler/assets/36798480/37c33faa-3876-41d2-940b-bf19bb7a86f7)
