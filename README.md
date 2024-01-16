@@ -1,5 +1,5 @@
 # ICY
-ICY
+**I** **C**hoose **Y**ou
 
 First Battle
 ![](https://github.com/KenanRustamov/ICY/blob/master/First%20Battle%20Against%20Max%20Damage.gif)
